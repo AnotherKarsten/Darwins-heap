@@ -5,6 +5,7 @@
   "type": "module",
   "private": true,
   "license": "MIT",
+  "author": "Karsten Leick",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "start": "python3 -m http.server 8080"

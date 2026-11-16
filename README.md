@@ -103,4 +103,4 @@ Einmalig nötig: im Repository unter **Settings → Pages → Build and deployme
 
 ## Lizenz
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 Karsten Leick
