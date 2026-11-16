@@ -186,3 +186,20 @@ test('processes keep a stable number; SPL gives the new one the next number', ()
   a.players[0].queue.forEach((pc, s, k, pid) => pids.push(`${pid}@${pc}`));
   assert.deepEqual(pids.sort(), ['1@1', '2@2']);
 });
+
+test('context help explains an operand in the context of its instruction (WAIT 2 vs WAIT #2)', async () => {
+  const { contextHelp } = await import('../js/ui/context-help.js');
+  const settings = { coreSize: 4000, maxProcesses: 1000, maxCycles: 0 };
+  const code = 'start   WAIT 2\n        WAIT #2\n        JMP #3\n        MOV 0, step\nstep    DAT #1';
+  const strip = (h) => h.replace(/<[^>]+>/g, '');
+  const at = (needle, off) => code.indexOf(needle) + off;
+  const addr = strip(contextHelp(code, at('WAIT 2', 5), 'en', settings));
+  assert.match(addr, /an address: the cell 2 places further/);
+  assert.match(addr, /WAIT reads the B field/);
+  assert.match(addr, /With # in front \(#2\) it would be the number itself/);
+  const imm = strip(contextHelp(code, at('WAIT #2', 6), 'en', settings));
+  assert.match(imm, /sleeps exactly 2 of its own turns/);
+  assert.match(imm, /Without # \(2\) it would be an address/);
+  assert.match(strip(contextHelp(code, at('JMP #3', 5), 'en', settings)), /jumps onto itself/);
+  assert.match(strip(contextHelp(code, at('MOV 0', 4), 'de', settings)), /MOV kopiert Zelle \+0 \(dieser Befehl selbst\) komplett/);
+});
