@@ -28,8 +28,8 @@ Das Spiel gibt es auf **Deutsch und Englisch** (Umschalter `EN | DE` oben rechts
 - **Darstellung** mit Besitzfarben, aufleuchtenden Schreibzugriffen, Bomben und Prozessen; drei Ansichten (Besitz, Schreib-Hitze, Ausführung)
 - **Tempo** von 0,5 bis 30 000 Zyklen pro Sekunde, Pause, Einzelzyklus und Einzelbefehl
 - **Statistik, Lupe und Analyse**: Prozesse, Speicheranteil, Treffer-Matrix, Befehlsmix, Verlaufskurven, Ereignisprotokoll
-- **Editor** mit Syntaxhervorhebung, Live-Fehlerprüfung, Befehlsreferenz, Vorlagen und `.heap`-Dateien
-- **Lernpfad**: *Grundlagen* für absolute Einsteiger – 9 Kapitel mit einem Mini-Speicher aus 32 Zellen. Jede Zelle zeigt A- und B-Feld, ein Klick erklärt eine Zelle Feld für Feld (und markiert, wohin ihre Adressen zeigen), und jeder ausgeführte Befehl wird Zeile für Zeile aufgeschlüsselt: Programmzähler, A-Feld, B-Feld, Ergebnis, neuer PC. Danach 6 Kampf-Lektionen mit Zielen
+- **Editor** mit Syntaxhervorhebung, Live-Fehlerprüfung, **Kontexthilfe** (erklärt, worauf der Cursor steht: Befehl, Adressierungsart, Label, Variable, Konstante, Kommentar), Nachschlage-Liste für Befehle, Adressierungsarten und Konstanten mit aktuellen Werten, Vorlagen und `.heap`-Dateien
+- **Lernpfad**: *Grundlagen* für absolute Einsteiger – 11 Kapitel (auch zu Kommentaren, Konstanten, Variablen und allen Adressierungsarten) mit einem Mini-Speicher aus 32 Zellen. Jede Zelle zeigt A- und B-Feld, ein Klick erklärt eine Zelle Feld für Feld (und markiert, wohin ihre Adressen zeigen), und jeder ausgeführte Befehl wird Zeile für Zeile aufgeschlüsselt: Programmzähler, A-Feld, B-Feld, Ergebnis, neuer PC. Danach 6 Kampf-Lektionen mit Zielen
 - **Einzelspieler** gegen 6 Bots (Sitzende Ente, Wichtel, Zwerg, Würfler, Späher, Mitose)
 - **Mehrspieler** mit bis zu 4 Programmen an einem Rechner; **🔗 Teilen** erzeugt einen Link mit allen Programmen
 - **Turnier** über viele Runden mit Punktetabelle

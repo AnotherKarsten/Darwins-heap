@@ -32,8 +32,8 @@ The game is available in **English and German** (switch with `EN | DE` in the he
 | **Statistics** | Live cards (processes, memory share, hits), history charts, event log |
 | **Lens** | Disassembled view around any cell, process markers, a “follow” mode that sticks to a program |
 | **Analysis** | Hit matrix (who hit whom), instruction mix per program, own goals, turns slept and more |
-| **Editor** | Syntax highlighting, line numbers, live errors with jump-to-line, clickable instruction reference, templates, open/save `.heap` files |
-| **Tutorial** | *Basics* for absolute beginners: 9 chapters with a 32-cell mini memory. Every cell shows its A and B field, a click explains a cell field by field (and marks where its addresses point), and each executed instruction is broken down line by line: program counter, A field, B field, result, new PC. Then 6 battle lessons with goals, from the first `MOV 0, 1` to a battle royale |
+| **Editor** | Syntax highlighting, line numbers, live errors with jump-to-line, **context help** that explains whatever the cursor is on (instruction, addressing mode, label, variable, constant, comment), clickable reference of instructions, addressing modes and constants with their current values, templates, open/save `.heap` files |
+| **Tutorial** | *Basics* for absolute beginners: 11 chapters (including comments, constants, variables and all addressing modes) with a 32-cell mini memory. Every cell shows its A and B field, a click explains a cell field by field (and marks where its addresses point), and each executed instruction is broken down line by line: program counter, A field, B field, result, new PC. Then 6 battle lessons with goals, from the first `MOV 0, 1` to a battle royale |
 | **Single player** | 6 bots in three difficulty levels: Sitting Duck, Imp, Dwarf, Dicer, Scout, Mitosis |
 | **Multiplayer** | Up to 4 programs on one computer. **🔗 Share** creates a link that contains all programs – so everyone can send their program to the others |
 | **Tournament** | Many rounds with random start positions, free-for-all or round robin, points table |
@@ -66,7 +66,7 @@ bomb    DAT #0, #0        ; whoever executes this dies
 | `NOP` | Does nothing |
 
 Addressing modes: `#` immediate · `$` direct (default) · `@` indirect · `<` indirect with pre-decrement · `>` indirect with post-increment.
-Plus labels, `EQU`, `ORG`, expressions (`+ - * / %`, parentheses) and the constant `CORESIZE`. The complete manual is built into the game (📖).
+Comments start with `;`. Labels name a cell; a variable is simply a labelled `DAT` cell whose number lives in the B field. Constants are defined with `EQU` (`step EQU 7`); built-in constants are `CORESIZE`, `MAXPROCESSES`, `MAXCYCLES` and `MAXLENGTH`. Expressions support `+ - * / %` and parentheses. The complete manual is built into the game (📖) – with sections on comments, labels, constants (with their current values), variables and addressing modes.
 
 ## Code structure
 

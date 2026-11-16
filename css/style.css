@@ -487,3 +487,27 @@ table.matrix th:first-child, table.matrix td:first-child, table.tour th:first-ch
   .mini-right { position: sticky; top: 0; }
   .mini-cell { min-height: 58px; }
 }
+
+/* ---------- editor context help & reference groups ---------- */
+.editor-help {
+  border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); padding: 8px 10px;
+  font-size: 12.5px; line-height: 1.5; min-height: 74px; max-height: 210px; overflow: auto; flex: none;
+}
+.editor-help p { margin: 4px 0; }
+.ch-title { font-weight: 600; margin-bottom: 4px; }
+.ch-mode { color: var(--muted); }
+.ref-group { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 8px 6px 2px; }
+.ref-group:first-child { margin-top: 0; }
+.ref-item.ref-const { grid-template-columns: 1fr; }
+.ref-item.ref-const span { color: var(--muted); }
+.tok-const { color: #7dd3fc; font-weight: 600; }
+.lesson-body h4 { margin: 18px 0 4px; font-size: 15px; }
+.const-table, .mode-table { border-collapse: collapse; margin: 6px 0 10px; font-size: 13px; width: 100%; }
+.const-table td, .mode-table td, .mode-table th { border-bottom: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+.mode-table th { color: var(--muted); font-weight: 600; font-size: 12px; }
+.const-table td:first-child, .mode-table td:first-child { white-space: nowrap; }
+.manual-toc { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: 6px 0 8px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.manual-toc a { text-decoration: none; }
+.manual-body h3 { scroll-margin-top: 44px; }
+.manual-body td:first-child code { font-weight: 700; }
+.manual-body .cmp-table td:first-child { font-family: var(--sans); font-weight: 400; white-space: normal; }

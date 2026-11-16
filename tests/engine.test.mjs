@@ -157,3 +157,19 @@ test('basics demos run on the 32-cell mini memory', () => {
   a.load(b7.demo.programs.map((p, i) => ({ name: `p${i}`, program: prog(p.code.en, { coreSize: 32 }) })), b7.demo.programs.map((p) => p.start));
   assert.equal(a.runToEnd().winner, 0);
 });
+
+test('editor context help explains what is under the cursor', async () => {
+  const { contextHelp } = await import('../js/ui/context-help.js');
+  const settings = { coreSize: 4000, maxProcesses: 1000, maxCycles: 0 };
+  const code = 'step EQU 3\nstart   ADD #step, value ; note\n        JMP start\nvalue   DAT #0, #0\n        MOV #CORESIZE, @value';
+  const at = (needle, off = 1) => code.indexOf(needle) + off;
+  const strip = (h) => h.replace(/<[^>]+>/g, '');
+  assert.match(strip(contextHelp(code, at('ADD'), 'en', settings)), /Instruction ADD/);
+  assert.match(strip(contextHelp(code, at('#step', 2), 'en', settings)), /Your constant \(EQU\) step/);
+  assert.match(strip(contextHelp(code, at('value ;'), 'en', settings)), /Variable value/);
+  assert.match(strip(contextHelp(code, at('note'), 'en', settings)), /Comment/);
+  assert.match(strip(contextHelp(code, at('JMP start', 6), 'en', settings)), /Label start/);
+  assert.match(strip(contextHelp(code, at('CORESIZE', 2), 'en', settings)), /Current value: 4000/);
+  assert.match(strip(contextHelp(code, at('@value', 0), 'en', settings)), /Addressing mode @/);
+  assert.match(strip(contextHelp(code, at('#CORESIZE', 2), 'de', settings)), /Eingebaute Konstante CORESIZE/);
+});

@@ -4,6 +4,7 @@ import { OP_NAMES, OP_ALIASES, OP_INFO } from '../engine/isa.js';
 
 const OPS = new Set([...OP_NAMES, ...Object.keys(OP_ALIASES)]);
 const DIRS = new Set(['EQU', 'ORG', 'END']);
+const CONSTS = new Set(['CORESIZE', 'MAXPROCESSES', 'MAXCYCLES', 'MAXLENGTH']);
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -23,6 +24,7 @@ export function highlightLine(line) {
         const grp = OP_INFO[OP_ALIASES[up] || up].group;
         out += `<span class="op-${grp}">${esc(m[1])}</span>`;
       } else if (DIRS.has(up)) out += `<span class="tok-dir">${esc(m[1])}</span>`;
+      else if (CONSTS.has(up)) out += `<span class="tok-const">${esc(m[1])}</span>`;
       else if (first && /^\S/.test(line)) out += `<span class="tok-label">${esc(m[1])}</span>`;
       else out += esc(m[1]);
       first = false;
@@ -38,8 +40,9 @@ export function highlightLine(line) {
 }
 
 export class CodeEditor {
-  constructor(host, { onChange } = {}) {
+  constructor(host, { onChange, onCaret } = {}) {
     this.onChange = onChange;
+    this.onCaret = onCaret;
     host.innerHTML = '<div class="gutter"></div><div class="area"><pre aria-hidden="true"></pre><textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Source code"></textarea></div>';
     this.gutter = host.querySelector('.gutter');
     this.pre = host.querySelector('pre');
@@ -48,6 +51,10 @@ export class CodeEditor {
     this.ta.addEventListener('input', () => this.refresh(true));
     this.ta.addEventListener('scroll', () => this.syncScroll());
     this.ta.addEventListener('keydown', (e) => this.onKey(e));
+    // tell the outside world where the cursor is (for the context help)
+    const caret = () => { if (this.onCaret) this.onCaret(this.ta.value, this.ta.selectionStart); };
+    for (const ev of ['keyup', 'click', 'input', 'focus']) this.ta.addEventListener(ev, caret);
+    document.addEventListener('selectionchange', () => { if (document.activeElement === this.ta) caret(); });
   }
 
   get value() { return this.ta.value; }

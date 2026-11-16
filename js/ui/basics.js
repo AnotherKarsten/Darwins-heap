@@ -192,6 +192,85 @@ Darum zeigt das Raster <code>MOV #7, $4</code> statt <code>MOV #7, kiste_a</code
     },
   },
   {
+    id: 'bconst',
+    demo: { programs: [{ start: 2, code: {
+      en: `;name Count demo
+;strategy Comments like this one are ignored by the game.
+step    EQU 3                  ; constant: a fixed number, uses no cell
+start   MOV #CORESIZE/2, half  ; built-in constant (here 32/2 = 16)
+loop    ADD #step, value       ; value = value + 3
+        JMP loop
+half    DAT #0, #0             ; variable: a cell with a label
+value   DAT #0, #0             ; another variable`,
+      de: `;name Zähl-Demo
+;strategy Kommentare wie dieser werden vom Spiel ignoriert.
+schritt EQU 3                   ; Konstante: feste Zahl, belegt keine Zelle
+start   MOV #CORESIZE/2, haelfte ; eingebaute Konstante (hier 32/2 = 16)
+loop    ADD #schritt, wert      ; wert = wert + 3
+        JMP loop
+haelfte DAT #0, #0              ; Variable: eine Zelle mit Label
+wert    DAT #0, #0              ; noch eine Variable`,
+    }, }], select: 6 },
+    en: {
+      title: 'Comments, constants and variables',
+      subtitle: 'Notes for humans, fixed numbers and changing numbers',
+      html: `
+<h4>Comments</h4>
+<p>Everything after a <b>semicolon</b> <code>;</code> is a <b>comment</b>: a note for humans. The game ignores it completely.
+A comment can stand on its own line or after an instruction.</p>
+<pre>; this whole line is a comment
+loop    ADD #1, value   ; this part is a comment too</pre>
+<p>Three special comments at the top of a program are shown in the game: <code>;name</code> (the program's name), <code>;author</code> and <code>;strategy</code> (a short description).</p>
+<h4>Constants</h4>
+<p>A <b>constant</b> is a <b>name for a fixed number</b>. It is replaced by its number <i>before</i> the match starts. It occupies <b>no cell</b> and can never change.</p>
+<ul>
+<li><b>Your own</b> constants are defined with <code>EQU</code> (“equals”): <code>step EQU 3</code>. From then on, <code>#step</code> means the same as <code>#3</code>.</li>
+<li><b>Built-in</b> constants always exist:
+<table class="const-table">
+<tr><td><code>CORESIZE</code></td><td>number of cells in memory (here 32, in the game 4000 by default)</td></tr>
+<tr><td><code>MAXPROCESSES</code></td><td>how many processes one program may have at most</td></tr>
+<tr><td><code>MAXCYCLES</code></td><td>after how many cycles the match ends in a draw</td></tr>
+<tr><td><code>MAXLENGTH</code></td><td>how many instructions one program may have at most (100)</td></tr>
+</table></li>
+<li>You can calculate with them: <code>#CORESIZE/2</code>, <code>#step*2+1</code>.</li>
+</ul>
+<h4>Variables</h4>
+<p>There is no special variable command. A <b>variable</b> is simply a <b>cell with a label</b>, usually a <code>DAT</code>. Its number lives in the <span class="fb">B field</span>:</p>
+<pre>value   DAT #0, #0      ; defines the variable "value", starting at 0</pre>
+<p>Unlike a constant, a variable <b>can change while the program runs</b> – and because it is an ordinary cell, an opponent can overwrite it too.</p>
+<p class="tip">In the grid you can see the difference: the constant <i>step</i> has <b>no cell</b> – <code>ADD #step</code> already shows <code>#3</code>. The variables <i>half</i> and <i>value</i> are real cells. Press <b>Step</b> and watch their <span class="fb">B fields</span>.</p>`,
+    },
+    de: {
+      title: 'Kommentare, Konstanten und Variablen',
+      subtitle: 'Notizen für Menschen, feste Zahlen und veränderliche Zahlen',
+      html: `
+<h4>Kommentare</h4>
+<p>Alles hinter einem <b>Semikolon</b> <code>;</code> ist ein <b>Kommentar</b>: eine Notiz für Menschen. Das Spiel ignoriert ihn vollständig.
+Ein Kommentar kann in einer eigenen Zeile stehen oder hinter einem Befehl.</p>
+<pre>; diese ganze Zeile ist ein Kommentar
+loop    ADD #1, wert    ; dieser Teil ist auch ein Kommentar</pre>
+<p>Drei besondere Kommentare am Anfang eines Programms zeigt das Spiel an: <code>;name</code> (der Name des Programms), <code>;author</code> und <code>;strategy</code> (eine kurze Beschreibung).</p>
+<h4>Konstanten</h4>
+<p>Eine <b>Konstante</b> ist ein <b>Name für eine feste Zahl</b>. Sie wird schon <i>vor</i> dem Start der Partie durch ihre Zahl ersetzt. Sie belegt <b>keine Zelle</b> und kann sich nie ändern.</p>
+<ul>
+<li><b>Eigene</b> Konstanten definierst du mit <code>EQU</code> („ist gleich“): <code>schritt EQU 3</code>. Danach bedeutet <code>#schritt</code> dasselbe wie <code>#3</code>.</li>
+<li><b>Eingebaute</b> Konstanten gibt es immer:
+<table class="const-table">
+<tr><td><code>CORESIZE</code></td><td>Anzahl der Zellen im Speicher (hier 32, im Spiel standardmäßig 4000)</td></tr>
+<tr><td><code>MAXPROCESSES</code></td><td>wie viele Prozesse ein Programm höchstens haben darf</td></tr>
+<tr><td><code>MAXCYCLES</code></td><td>nach wie vielen Zyklen die Partie unentschieden endet</td></tr>
+<tr><td><code>MAXLENGTH</code></td><td>wie viele Befehle ein Programm höchstens haben darf (100)</td></tr>
+</table></li>
+<li>Man kann mit ihnen rechnen: <code>#CORESIZE/2</code>, <code>#schritt*2+1</code>.</li>
+</ul>
+<h4>Variablen</h4>
+<p>Es gibt keinen eigenen Variablen-Befehl. Eine <b>Variable</b> ist einfach eine <b>Zelle mit Label</b>, meistens ein <code>DAT</code>. Ihre Zahl steht im <span class="fb">B-Feld</span>:</p>
+<pre>wert    DAT #0, #0      ; definiert die Variable "wert", Startwert 0</pre>
+<p>Anders als eine Konstante <b>kann sich eine Variable während des Laufs ändern</b> – und weil sie eine ganz normale Zelle ist, kann ein Gegner sie auch überschreiben.</p>
+<p class="tip">Im Raster siehst du den Unterschied: Die Konstante <i>schritt</i> hat <b>keine Zelle</b> – bei <code>ADD #schritt</code> steht schon <code>#3</code>. Die Variablen <i>haelfte</i> und <i>wert</i> sind echte Zellen. Drück auf <b>Schritt</b> und beobachte ihre <span class="fb">B-Felder</span>.</p>`,
+    },
+  },
+  {
     id: 'b4',
     demo: { programs: [{ start: 2, code: { en: 'start   ADD #4, bomb\n        MOV bomb, @bomb\n        JMP start\nbomb    DAT #0, #0', de: 'start   ADD #4, bomb\n        MOV bomb, @bomb\n        JMP start\nbomb    DAT #0, #0' } }] },
     en: {
@@ -223,6 +302,65 @@ Dafür kann eine Zelle als <b>Zeiger</b> dienen: Ihr B-Feld sagt „zähle von m
 <p>Dieses Programm ist der berühmte <b>Zwerg</b>. In jeder Runde erhöht er den Zeiger um 4 und kopiert die <code>DAT</code>-Zelle (die „Bombe“) dorthin, wohin der Zeiger zeigt.
 So verteilt er Bomben über den Speicher, alle 4 Zellen eine. Warum Bomben? Das siehst du gleich.</p>
 <p class="tip">Nimm <b>Auto</b> und beobachte, wie in jeder vierten Zelle eine rote DAT-Bombe erscheint.</p>`,
+    },
+  },
+  {
+    id: 'bmodes',
+    demo: { programs: [{ start: 1, code: {
+      en: `start   MOV #7, target      ; #  the number 7
+        MOV target, copy    ; $  the cell "target" directly
+        MOV target, @ptr    ; @  where ptr points
+        MOV target, >ptr    ; >  like @, then ptr + 1
+        MOV target, >ptr    ;    … so this lands one cell further
+        MOV target, <ptr    ; <  first ptr − 1, then like @
+stop    JMP stop            ; done: run on the spot
+ptr     DAT #0, #5
+target  DAT #0, #0
+copy    DAT #0, #0`,
+      de: `start   MOV #7, ziel        ; #  die Zahl 7
+        MOV ziel, kopie     ; $  die Zelle "ziel" direkt
+        MOV ziel, @zeiger   ; @  dorthin, wohin zeiger zeigt
+        MOV ziel, >zeiger   ; >  wie @, danach zeiger + 1
+        MOV ziel, >zeiger   ;    … darum landet das eine Zelle weiter
+        MOV ziel, <zeiger   ; <  erst zeiger − 1, dann wie @
+stop    JMP stop            ; fertig: auf der Stelle treten
+zeiger  DAT #0, #5
+ziel    DAT #0, #0
+kopie   DAT #0, #0`,
+    }, }], select: 8 },
+    en: {
+      title: 'All addressing modes at a glance',
+      subtitle: '#, $, @, < and > – how a field is read',
+      html: `
+<p>The small sign in front of a field is called the <b>addressing mode</b>. It decides how the number in the field is used. There are five:</p>
+<table class="mode-table">
+<tr><th>Sign</th><th>Name</th><th>Meaning</th><th>Example (in cell 10, ptr = cell 12 with B field 5)</th></tr>
+<tr><td><code>#</code></td><td>immediate</td><td>the number itself – no address</td><td><code>#7</code> → the number 7</td></tr>
+<tr><td><code>$</code></td><td>direct (default)</td><td>a cell, counted from here. The <code>$</code> may be left out.</td><td><code>$2</code> → 10 + 2 = cell 12</td></tr>
+<tr><td><code>@</code></td><td>indirect</td><td>go to the cell, read its <span class="fb">B field</span>, go that far again</td><td><code>@ptr</code> → 12 + 5 = cell 17</td></tr>
+<tr><td><code>&gt;</code></td><td>indirect, +1 after</td><td>like <code>@</code>, then the <span class="fb">B field</span> of the pointer goes up by 1</td><td><code>&gt;ptr</code> → cell 17, ptr then holds 6</td></tr>
+<tr><td><code>&lt;</code></td><td>indirect, −1 before</td><td>first the <span class="fb">B field</span> of the pointer goes down by 1, then like <code>@</code></td><td><code>&lt;ptr</code> → ptr holds 4, so cell 16</td></tr>
+</table>
+<p><b>Why do you need <code>&gt;</code> and <code>&lt;</code>?</b> They move the pointer automatically. In a loop, <code>MOV src, &gt;ptr</code> writes into a <b>new cell every time</b> – perfect for copying or for laying a carpet of bombs.</p>
+<p>All modes work in the <span class="fa">A field</span> and in the <span class="fb">B field</span>.</p>
+<p class="tip">The program below uses every mode once. The pointer <i>ptr</i> is already selected – press <b>Step</b> and watch its <span class="fb">B field</span> and the cells marked <span class="fb">B→</span>.</p>`,
+    },
+    de: {
+      title: 'Alle Adressierungsarten im Überblick',
+      subtitle: '#, $, @, < und > – wie ein Feld gelesen wird',
+      html: `
+<p>Das kleine Zeichen vor einem Feld heißt <b>Adressierungsart</b>. Es bestimmt, wie die Zahl im Feld benutzt wird. Es gibt fünf:</p>
+<table class="mode-table">
+<tr><th>Zeichen</th><th>Name</th><th>Bedeutung</th><th>Beispiel (in Zelle 10, zeiger = Zelle 12 mit B-Feld 5)</th></tr>
+<tr><td><code>#</code></td><td>unmittelbar</td><td>die Zahl selbst – keine Adresse</td><td><code>#7</code> → die Zahl 7</td></tr>
+<tr><td><code>$</code></td><td>direkt (Standard)</td><td>eine Zelle, gezählt ab hier. Das <code>$</code> darf man weglassen.</td><td><code>$2</code> → 10 + 2 = Zelle 12</td></tr>
+<tr><td><code>@</code></td><td>indirekt</td><td>geh zur Zelle, lies ihr <span class="fb">B-Feld</span>, geh noch einmal so weit</td><td><code>@zeiger</code> → 12 + 5 = Zelle 17</td></tr>
+<tr><td><code>&gt;</code></td><td>indirekt, danach +1</td><td>wie <code>@</code>, danach wird das <span class="fb">B-Feld</span> des Zeigers um 1 erhöht</td><td><code>&gt;zeiger</code> → Zelle 17, danach steht im Zeiger 6</td></tr>
+<tr><td><code>&lt;</code></td><td>indirekt, vorher −1</td><td>erst wird das <span class="fb">B-Feld</span> des Zeigers um 1 verringert, dann wie <code>@</code></td><td><code>&lt;zeiger</code> → im Zeiger steht 4, also Zelle 16</td></tr>
+</table>
+<p><b>Wozu braucht man <code>&gt;</code> und <code>&lt;</code>?</b> Sie verschieben den Zeiger automatisch. In einer Schleife schreibt <code>MOV quelle, &gt;zeiger</code> <b>jedes Mal in eine neue Zelle</b> – ideal zum Kopieren oder um einen Bombenteppich zu legen.</p>
+<p>Alle Arten funktionieren im <span class="fa">A-Feld</span> und im <span class="fb">B-Feld</span>.</p>
+<p class="tip">Das Programm unten benutzt jede Art einmal. Der Zeiger <i>zeiger</i> ist schon ausgewählt – drück auf <b>Schritt</b> und beobachte sein <span class="fb">B-Feld</span> und die mit <span class="fb">B→</span> markierten Zellen.</p>`,
     },
   },
   {

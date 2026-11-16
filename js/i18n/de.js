@@ -89,6 +89,8 @@ export default {
     'ed.open': 'Datei öffnen', 'ed.save': 'Als Datei speichern',
     'ed.instructions': 'Befehle', 'ed.clickInsert': '(Klick fügt ein)',
     'ed.foot': 'Tab rückt ein · Strg+Enter übernimmt · Esc bricht ab',
+    'ed.help': 'Hilfe zur Cursorposition', 'ed.reference': 'Nachschlagen', 'ed.constants': 'Konstanten', 'ed.modes': 'Adressierungsarten',
+    'ed.helpEmpty': 'Setz den Cursor auf ein Wort im Code, um hier eine Erklärung zu sehen.',
     'ed.cancel': 'Abbrechen', 'ed.apply': 'Übernehmen',
     'ed.confirmReplace': 'Aktuellen Code durch die Vorlage ersetzen?',
     'ed.copy': '(Kopie)',

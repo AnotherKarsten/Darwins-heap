@@ -97,6 +97,8 @@ export default {
     'ed.open': 'Open file', 'ed.save': 'Save as file',
     'ed.instructions': 'Instructions', 'ed.clickInsert': '(click to insert)',
     'ed.foot': 'Tab indents · Ctrl+Enter applies · Esc cancels',
+    'ed.help': 'Help at the cursor', 'ed.reference': 'Reference', 'ed.constants': 'Constants', 'ed.modes': 'Addressing modes',
+    'ed.helpEmpty': 'Put the cursor on a word in the code to see an explanation here.',
     'ed.cancel': 'Cancel', 'ed.apply': 'Apply',
     'ed.confirmReplace': 'Replace the current code with the template?',
     'ed.copy': '(copy)',

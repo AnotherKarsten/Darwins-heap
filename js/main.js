@@ -11,6 +11,7 @@ import { CodeEditor } from './ui/editor.js';
 import { LESSONS, lessonText } from './ui/lessons.js';
 import { BASICS, MiniSim } from './ui/basics.js';
 import { manualHtml } from './ui/manual.js';
+import { contextHelp, constantValues, CONST_INFO } from './ui/context-help.js';
 import * as store from './ui/storage.js';
 import { t, dict, setLang, getLang, detectLang, applyDom, locale } from './i18n/index.js';
 
@@ -73,7 +74,7 @@ class App {
   applyLanguage() {
     applyDom();
     $$('.lang-btn').forEach((b) => b.classList.toggle('active', b.dataset.lang === getLang()));
-    $('#manual-body').innerHTML = manualHtml();
+    $('#manual-body').innerHTML = manualHtml(this.settings);
     this.renderEditorChrome();
     this.renderSlots();
     this.setSpeed(this.speedIndex);
@@ -131,14 +132,19 @@ class App {
 
   slotAsm(slot) {
     const code = this.slotCode(slot);
-    const key = `${getLang()}|${this.settings.coreSize}|${this.settings.maxProcesses}|${code}`;
+    const key = `${getLang()}|${this.settings.coreSize}|${this.settings.maxProcesses}|${this.settings.maxCycles}|${code}`;
     let r = this.asmCache.get(key);
     if (!r) {
-      r = assemble(code, { coreSize: this.settings.coreSize, maxProcesses: this.settings.maxProcesses, lang: getLang() });
+      r = assemble(code, { ...this.asmOptions(), lang: getLang() });
       if (this.asmCache.size > 200) this.asmCache.clear();
       this.asmCache.set(key, r);
     }
     return r;
+  }
+
+  asmOptions() {
+    const v = constantValues(this.settings);
+    return { coreSize: v.CORESIZE, maxProcesses: v.MAXPROCESSES, maxCycles: v.MAXCYCLES, maxLength: v.MAXLENGTH };
   }
 
   slotName(slot) {
@@ -663,7 +669,10 @@ class App {
 
   // ---------------------------------------------------------------- editor
   setupEditor() {
-    this.editor = new CodeEditor($('#code-editor'), { onChange: () => this.checkEditor() });
+    this.editor = new CodeEditor($('#code-editor'), {
+      onChange: () => this.checkEditor(),
+      onCaret: (code, pos) => { $('#editor-help').innerHTML = contextHelp(code, pos, getLang(), this.settings); },
+    });
     const tpl = $('#editor-template');
     tpl.onchange = () => {
       const v = tpl.value;
@@ -674,7 +683,12 @@ class App {
       this.editor.value = code;
       this.checkEditor();
     };
-    $('#editor-ref').onclick = (e) => { const b = e.target.closest('.ref-item'); if (b) this.editor.insertLine(b.dataset.ex); };
+    $('#editor-ref').onclick = (e) => {
+      const b = e.target.closest('.ref-item');
+      if (!b) return;
+      if (b.dataset.word) this.editor.insert(b.dataset.word);
+      else this.editor.insertLine(b.dataset.ex);
+    };
     $('#editor-errors').onclick = (e) => { const li = e.target.closest('li[data-line]'); if (li) this.editor.gotoLine(+li.dataset.line); };
     $('#editor-cancel').onclick = () => $('#editor-dialog').close();
     $('#editor-apply').onclick = () => this.applyEditor();
@@ -700,9 +714,17 @@ class App {
     $('#editor-template').innerHTML = `<option value="">${esc(t('ed.template'))}</option>`
       + BOTS.map((b) => `<option value="${b.id}">${esc(botText(b, lang).name)}</option>`).join('')
       + `<option value="__starter">${esc(t('ed.starter'))}</option>`;
-    const ops = dict().ops;
-    $('#editor-ref').innerHTML = OP_NAMES.map((n) => `<button type="button" class="ref-item" data-ex="${esc(OP_INFO[n].example)}" title="${esc(ops[n].desc)}"><b class="op-${OP_INFO[n].group}">${n}</b><span>${esc(ops[n].short)}</span></button>`).join('');
+    const { ops, modes } = dict();
+    const values = constantValues(this.settings);
+    const info = CONST_INFO[lang] || CONST_INFO.en;
+    $('#editor-ref').innerHTML = `<div class="ref-group">${esc(t('ed.instructions'))}</div>`
+      + OP_NAMES.map((n) => `<button type="button" class="ref-item" data-ex="${esc(OP_INFO[n].example)}" title="${esc(ops[n].desc)}"><b class="op-${OP_INFO[n].group}">${n}</b><span>${esc(ops[n].short)}</span></button>`).join('')
+      + `<div class="ref-group">${esc(t('ed.modes'))}</div>`
+      + modes.map((m, k) => `<button type="button" class="ref-item" data-word="${'#$@<>'[k]}" title="${esc(m.desc)}"><b>${esc('#$@<>'[k])}</b><span>${esc(m.name)}</span></button>`).join('')
+      + `<div class="ref-group">${esc(t('ed.constants'))}</div>`
+      + Object.keys(values).map((k) => `<button type="button" class="ref-item ref-const" data-word="${k}" title="${esc(info[k])}"><b class="tok-const">${k}</b><span>= ${values[k]} · ${esc(info[k])}</span></button>`).join('');
     if ($('#editor-dialog').open) this.checkEditor();
+    $('#editor-help').innerHTML = `<div class="ch-body muted">${esc(t('ed.helpEmpty'))}</div>`;
   }
 
   openEditor(i) {
@@ -723,7 +745,7 @@ class App {
   }
 
   checkEditor() {
-    const r = assemble(this.editor.value, { coreSize: this.settings.coreSize, maxProcesses: this.settings.maxProcesses, lang: getLang() });
+    const r = assemble(this.editor.value, { ...this.asmOptions(), lang: getLang() });
     const marks = new Map();
     r.warnings.forEach((w) => marks.set(w.line, 'warn'));
     r.errors.forEach((e) => marks.set(e.line, 'err'));
@@ -971,6 +993,8 @@ class App {
       this.renderer.showHeads = this.settings.heads;
       this.renderer.layoutKey = '';
       $('#settings-dialog').close();
+      this.renderEditorChrome();
+      $('#manual-body').innerHTML = manualHtml(this.settings);
       this.renderSlots();
       this.rebuild();
     };
