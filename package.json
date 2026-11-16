@@ -1,0 +1,12 @@
+{
+  "name": "darwins-heap",
+  "version": "1.0.0",
+  "description": "Browsergame: selbst geschriebene Programme kämpfen in einem simulierten Speicher ums Überleben.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "start": "python3 -m http.server 8080"
+  }
+}
