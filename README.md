@@ -33,7 +33,7 @@ The game is available in **English and German** (switch with `EN | DE` in the he
 | **Lens** | Disassembled view around any cell, process markers, a “follow” mode that sticks to a program |
 | **Analysis** | Hit matrix (who hit whom), instruction mix per program, own goals, turns slept and more |
 | **Editor** | Syntax highlighting, line numbers, live errors with jump-to-line, clickable instruction reference, templates, open/save `.heap` files |
-| **Tutorial** | *Basics* for absolute beginners: 7 chapters with a 32-cell mini memory you can execute one instruction at a time, each step explained in plain words. Then 6 battle lessons with goals, from the first `MOV 0, 1` to a battle royale |
+| **Tutorial** | *Basics* for absolute beginners: 9 chapters with a 32-cell mini memory. Every cell shows its A and B field, a click explains a cell field by field (and marks where its addresses point), and each executed instruction is broken down line by line: program counter, A field, B field, result, new PC. Then 6 battle lessons with goals, from the first `MOV 0, 1` to a battle royale |
 | **Single player** | 6 bots in three difficulty levels: Sitting Duck, Imp, Dwarf, Dicer, Scout, Mitosis |
 | **Multiplayer** | Up to 4 programs on one computer. **🔗 Share** creates a link that contains all programs – so everyone can send their program to the others |
 | **Tournament** | Many rounds with random start positions, free-for-all or round robin, points table |

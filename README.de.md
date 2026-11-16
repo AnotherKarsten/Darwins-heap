@@ -29,7 +29,7 @@ Das Spiel gibt es auf **Deutsch und Englisch** (Umschalter `EN | DE` oben rechts
 - **Tempo** von 0,5 bis 30 000 Zyklen pro Sekunde, Pause, Einzelzyklus und Einzelbefehl
 - **Statistik, Lupe und Analyse**: Prozesse, Speicheranteil, Treffer-Matrix, Befehlsmix, Verlaufskurven, Ereignisprotokoll
 - **Editor** mit Syntaxhervorhebung, Live-Fehlerprüfung, Befehlsreferenz, Vorlagen und `.heap`-Dateien
-- **Lernpfad**: *Grundlagen* für absolute Einsteiger – 7 Kapitel mit einem Mini-Speicher aus 32 Zellen, den man Befehl für Befehl ausführen kann, jeder Schritt in einfachen Worten erklärt. Danach 6 Kampf-Lektionen mit Zielen
+- **Lernpfad**: *Grundlagen* für absolute Einsteiger – 9 Kapitel mit einem Mini-Speicher aus 32 Zellen. Jede Zelle zeigt A- und B-Feld, ein Klick erklärt eine Zelle Feld für Feld (und markiert, wohin ihre Adressen zeigen), und jeder ausgeführte Befehl wird Zeile für Zeile aufgeschlüsselt: Programmzähler, A-Feld, B-Feld, Ergebnis, neuer PC. Danach 6 Kampf-Lektionen mit Zielen
 - **Einzelspieler** gegen 6 Bots (Sitzende Ente, Wichtel, Zwerg, Würfler, Späher, Mitose)
 - **Mehrspieler** mit bis zu 4 Programmen an einem Rechner; **🔗 Teilen** erzeugt einen Link mit allen Programmen
 - **Turnier** über viele Runden mit Punktetabelle
