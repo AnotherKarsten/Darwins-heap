@@ -12,7 +12,7 @@ The game is available in **English and German** (switch with `EN | DE` in the he
 
 ## Play
 
-- **Online:** via GitHub Pages at `https://anotherkarsten.github.io/Darwins-heap/` once Pages is enabled (see [Publishing](#publishing)).
+- **Online:** **[▶ Play Darwin's Heap in your browser](https://anotherkarsten.github.io/Darwins-heap/)** – https://anotherkarsten.github.io/Darwins-heap/
 - **Locally:** clone the repository and start any static web server in its folder, e.g.
 
   ```bash
@@ -27,13 +27,13 @@ The game is available in **English and German** (switch with `EN | DE` in the he
 | Area | What you get |
 |---|---|
 | **Arena** | Ring memory with 2000, 4000 or 8000 cells, up to 4 programs at once, fair round-robin execution, process limit, cycle limit |
-| **Visuals** | Every cell in its owner's colour, fresh writes light up, bombs (DAT) are dimmed, processes are pulsing dots. Three views: *ownership*, *write heat*, *execution* |
+| **Visuals** | Every cell in its owner's colour, fresh writes light up, bombs (DAT) are dimmed, processes are dots (the pulsing one runs next). Three views: *ownership*, *write heat*, *execution* – with a legend under the arena |
 | **Speed** | 0.5 to 30,000 cycles per second or “maximum”, pause, single cycle (→) and single instruction (Shift + →) |
 | **Statistics** | Live cards (processes, memory share, hits), history charts, event log |
 | **Lens** | Disassembled view around any cell, process markers, a “follow” mode that sticks to a program |
 | **Analysis** | Hit matrix (who hit whom), instruction mix per program, own goals, turns slept and more |
 | **Editor** | Syntax highlighting, line numbers, live errors with jump-to-line, **context help** that explains whatever the cursor is on (instruction, addressing mode, label, variable, constant, comment), clickable reference of instructions, addressing modes and constants with their current values, templates, open/save `.heap` files |
-| **Tutorial** | *Basics* for absolute beginners: 11 chapters (including comments, constants, variables and all addressing modes) with a 32-cell mini memory. Every cell shows its A and B field, a click explains a cell field by field (and marks where its addresses point), and each executed instruction is broken down line by line: program counter, A field, B field, result, new PC. Then 6 battle lessons with goals, from the first `MOV 0, 1` to a battle royale |
+| **Tutorial** | *Basics* for absolute beginners: 13 chapters (including comments, constants, variables, where variables are stored, all addressing modes, and how processes take turns) with a 32-cell mini memory. Every cell shows its A and B field, a click explains a cell field by field (and marks where its addresses point), each executed instruction is broken down line by line (program counter, A field, B field, result, new PC), a “code → cells” view shows where every line of the source ends up, and an execution-order strip shows which program and process ran when. Then 6 battle lessons with goals, from the first `MOV 0, 1` to a battle royale |
 | **Single player** | 6 bots in three difficulty levels: Sitting Duck, Imp, Dwarf, Dicer, Scout, Mitosis |
 | **Multiplayer** | Up to 4 programs on one computer. **🔗 Share** creates a link that contains all programs – so everyone can send their program to the others |
 | **Tournament** | Many rounds with random start positions, free-for-all or round robin, points table |
@@ -101,13 +101,7 @@ Two GitHub Actions workflows are included:
 - **Tests** (`ci.yml`) runs on every push and pull request.
 - **Publish to GitHub Pages** (`pages.yml`) tests and publishes on every push to `main`.
 
-One-time setup: in the repository go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**. (GitHub Pages for private repositories requires a paid plan.)
-
-## Ideas for later
-
-- Real online multiplayer with rankings (needs a small backend)
-- A “hill” mode as in Core War: a permanent tournament you can submit programs to
-- Replays of a match as shareable recordings (the seed already makes every match reproducible)
+The site is published at https://anotherkarsten.github.io/Darwins-heap/ (Settings → Pages → Source: **GitHub Actions**).
 
 ## License
 

@@ -50,6 +50,18 @@ export default {
     'view.execs': 'Execution', 'view.execs.title': 'How often was a cell executed? (3)',
     'cycle': 'Cycle', 'seed': ({ seed }) => `Seed ${seed}`,
 
+    'leg.toggle': 'Legend',
+    'leg.code': 'program code (colour = owner)',
+    'leg.dat': 'DAT cell: bomb or stored number',
+    'leg.fresh': 'just written (lights up briefly)',
+    'leg.exec': 'just executed',
+    'leg.next': 'pulsing dot: a program\'s next process',
+    'leg.proc': 'small dot: another process (waiting)',
+    'leg.sleep': 'tiny dot: process asleep (WAIT)',
+    'leg.empty': 'empty memory',
+    'leg.writes': 'how often a cell was written: never → very often',
+    'leg.execs': 'how often a cell was executed: never → very often',
+    'leg.hint': 'Hover over a cell for details, click it to inspect it in the Lens.',
     // right panel
     'tab.live': 'Live', 'tab.lens': 'Lens', 'tab.analysis': 'Analysis',
     'chart.procs': 'Processes', 'chart.cells': 'Memory share', 'chart.empty': 'Data appears once the match is running',

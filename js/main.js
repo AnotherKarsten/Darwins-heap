@@ -77,6 +77,7 @@ class App {
     $('#manual-body').innerHTML = manualHtml(this.settings);
     this.renderEditorChrome();
     this.renderSlots();
+    this.renderLegend();
     this.setSpeed(this.speedIndex);
     if (this.arena && (this.running || this.arena.cycle > 0)) {
       // a match is in progress: keep it, just rename the programs and refresh all panels
@@ -610,6 +611,7 @@ class App {
     $('#btn-tournament').onclick = () => this.openTournament();
     $('#btn-settings').onclick = () => this.openSettings();
     $('#btn-share').onclick = () => this.share();
+    $('#btn-legend').onclick = () => { store.save('legend', !store.load('legend', true)); this.renderLegend(); };
     $('#goal-close').onclick = () => this.exitLesson(true);
     $('#goal-lesson').onclick = () => this.openTutorial(this.lesson);
     $('#result-again').onclick = () => { $('#result-dialog').close(); this.rebuild(); this.play(); };
@@ -618,7 +620,35 @@ class App {
   setView(view) {
     this.renderer.view = view;
     $$('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === view));
+    this.renderLegend();
     this.renderer.render();
+  }
+
+  /** Short legend under the arena; adapts to the current view. */
+  renderLegend() {
+    const el = $('#legend');
+    const show = store.load('legend', true);
+    el.hidden = !show;
+    $('#btn-legend').setAttribute('aria-expanded', String(show));
+    $('#btn-legend').classList.toggle('active', show);
+    if (!show) return;
+    const item = (sw, key) => `<span class="leg-item">${sw}<span>${esc(t(key))}</span></span>`;
+    const view = this.renderer.view;
+    let html;
+    if (view === 'owner') {
+      html = item(`<i class="sw sw-code">${PLAYER_COLORS.map((c) => `<b style="background:${c}"></b>`).join('')}</i>`, 'leg.code')
+        + item('<i class="sw sw-dat"></i>', 'leg.dat')
+        + item('<i class="sw sw-fresh"></i>', 'leg.fresh')
+        + item('<i class="sw sw-exec"></i>', 'leg.exec')
+        + item('<i class="sw sw-empty"></i>', 'leg.empty')
+        + item('<i class="dot dot-next"></i>', 'leg.next')
+        + item('<i class="dot dot-proc"></i>', 'leg.proc')
+        + item('<i class="dot dot-sleep"></i>', 'leg.sleep');
+    } else {
+      html = item(`<i class="sw sw-grad ${view === 'writes' ? 'grad-heat' : 'grad-cool'}"></i>`, view === 'writes' ? 'leg.writes' : 'leg.execs')
+        + item('<i class="dot dot-next"></i>', 'leg.next');
+    }
+    el.innerHTML = html + `<span class="leg-hint">${esc(t('leg.hint'))}</span>`;
   }
 
   bindKeyboard() {

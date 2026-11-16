@@ -6,6 +6,7 @@ import { assemble } from '../engine/assembler.js';
 import { Arena } from '../engine/arena.js';
 import { OP, OP_NAMES, OP_INFO, MODE, MODE_CHARS, signed } from '../engine/isa.js';
 import { PLAYER_COLORS } from './renderer.js';
+import { highlightLine } from './editor.js';
 
 const MINI = 32;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -50,6 +51,12 @@ const TX = {
     startNoSteps: 'Click a cell to see what is inside.',
     step: 'Step', auto: 'Auto', stop: 'Stop', reset: 'Reset', follow: 'Follow the PC',
     legendA: 'A field', legendB: 'B field', legendPc: 'process (PC)', legendTarget: 'points here',
+    srcTitle: (who) => `${who}'s code → cells`,
+    noCell: 'no cell',
+    constCell: 'no cell (constant)',
+    histTitle: 'Execution order so far (newest on the right)',
+    histEmpty: 'Nothing executed yet.',
+    histCell: (c) => `cell ${c}`,
     detTitle: (addr, label) => `Cell ${addr}${label ? ` <i>(${label})</i>` : ''}`,
     detPc: (who) => `▶ the PC of ${who} points here – this instruction runs next.`,
     detDat: 'DAT only holds data. A process that executes it dies. Here its fields are simply two stored numbers:',
@@ -102,6 +109,12 @@ const TX = {
     startNoSteps: 'Klick auf eine Zelle, um zu sehen, was darin steht.',
     step: 'Schritt', auto: 'Auto', stop: 'Stopp', reset: 'Neu', follow: 'Dem PC folgen',
     legendA: 'A-Feld', legendB: 'B-Feld', legendPc: 'Prozess (PC)', legendTarget: 'zeigt hierher',
+    srcTitle: (who) => `Code von ${who} → Zellen`,
+    noCell: 'keine Zelle',
+    constCell: 'keine Zelle (Konstante)',
+    histTitle: 'Bisherige Reihenfolge der Ausführung (neueste rechts)',
+    histEmpty: 'Noch nichts ausgeführt.',
+    histCell: (c) => `Zelle ${c}`,
     detTitle: (addr, label) => `Zelle ${addr}${label ? ` <i>(${label})</i>` : ''}`,
     detPc: (who) => `▶ Der PC von ${who} zeigt hierher – dieser Befehl ist als Nächstes dran.`,
     detDat: 'DAT enthält nur Daten. Ein Prozess, der es ausführt, stirbt. Hier sind die Felder einfach zwei gespeicherte Zahlen:',
@@ -149,9 +162,11 @@ export class MiniSim {
             <button class="btn small primary" data-mini="step">⏭ ${T.step}</button>
             <button class="btn small" data-mini="auto">▶ ${T.auto}</button>
           </div>
+          <div class="mini-source" ${demo.showSource ? '' : 'hidden'}></div>
         </div>
         <div class="mini-right">
           <div class="mini-queue" ${hidePc ? 'hidden' : ''}></div>
+          <div class="mini-history" ${demo.showHistory ? '' : 'hidden'}></div>
           <div class="mini-explain" ${demo.noSteps ? 'hidden' : ''}></div>
           <div class="mini-detail"></div>
         </div>
@@ -160,6 +175,14 @@ export class MiniSim {
     this.detailEl = host.querySelector('.mini-detail');
     this.queueEl = host.querySelector('.mini-queue');
     this.explainEl = host.querySelector('.mini-explain');
+    this.sourceEl = host.querySelector('.mini-source');
+    this.historyEl = host.querySelector('.mini-history');
+    this.sourceEl.addEventListener('click', (e) => {
+      const r = e.target.closest('[data-cell]');
+      if (!r) return;
+      this.selected = +r.dataset.cell;
+      this.render();
+    });
     host.querySelector('[data-mini=reset]').onclick = () => this.reset();
     host.querySelector('[data-mini=step]').onclick = () => { this.stopAuto(); this.step(); };
     this.autoBtn = host.querySelector('[data-mini=auto]');
@@ -182,6 +205,8 @@ export class MiniSim {
     const names = this.lang === 'de' ? ['Blau', 'Pink'] : ['Blue', 'Pink'];
     this.arena.load(progs.map((program, i) => ({ name: names[i], color: PLAYER_COLORS[i], program })), this.demo.programs.map((p) => p.start));
     progs.forEach((pr, i) => pr.labelAt.forEach((ls, k) => { if (ls.length) this.labels.set((this.demo.programs[i].start + k) % MINI, ls.join(', ')); }));
+    this.progs = progs;
+    this.history = [];
     this.changed = new Map();
     this.lastPc = -1;
     this.selected = this.demo.select ?? null;
@@ -232,6 +257,8 @@ export class MiniSim {
     const q = p.queue;
     const pc = q.pc[q.head];
     const sleep = q.sleep[q.head];
+    this.history.push({ p, pid: q.pid[q.head], pc });
+    if (this.history.length > 16) this.history.shift();
     const op = a.op[pc], am = a.am[pc], av = a.av[pc], bm = a.bm[pc], bv = a.bv[pc];
     const [useA, useB] = USES[op];
     const A = this.resolveField(pc, am, av);
@@ -353,7 +380,7 @@ export class MiniSim {
     const heads = new Map();
     a.players.forEach((p) => {
       if (!p.alive || this.demo.hidePc) return;
-      p.queue.forEach((pc, s, k) => { if (!heads.has(pc)) heads.set(pc, { p, first: k === 0 && a.turn === p.id }); });
+      p.queue.forEach((pc, s, k, pid) => { if (!heads.has(pc)) heads.set(pc, { p, pid, first: k === 0 && a.turn === p.id }); });
     });
     let html = '';
     for (let i = 0; i < n; i++) {
@@ -376,7 +403,7 @@ export class MiniSim {
       if (i === targets.a) tags.push('<span class="tgt tgt-a">A→</span>');
       if (i === targets.b) tags.push('<span class="tgt tgt-b">B→</span>');
       html += `<div class="${cls.join(' ')}" style="${style}" data-addr="${i}">
-        <div class="mini-top"><span class="mini-adr">${h ? '<span class="mini-pc">▶</span>' : ''}${i}</span>${this.labels.has(i) ? `<span class="mini-lbl">${esc(this.labels.get(i))}</span>` : ''}</div>
+        <div class="mini-top"><span class="mini-adr">${h ? `<span class="mini-pc">▶${this.multi(h.p) ? ` P${h.pid}` : ''}</span>` : ''}${i}</span>${this.labels.has(i) ? `<span class="mini-lbl">${esc(this.labels.get(i))}</span>` : ''}</div>
         <div class="mini-op op-${OP_INFO[name].group}${ch && ch.op ? ' chg' : ''}">${name}</div>
         <div class="mini-fields"><span class="fa${ch && ch.a ? ' chg' : ''}">${fieldText(a.am[i], a.av[i])}</span><span class="fb${ch && ch.b ? ' chg' : ''}">${fieldText(a.bm[i], a.bv[i])}</span></div>
         ${tags.length ? `<div class="tgts">${tags.join('')}</div>` : ''}
@@ -385,9 +412,44 @@ export class MiniSim {
     this.grid.innerHTML = html;
     this.queueEl.innerHTML = a.players.map((p) => {
       const items = [];
-      p.queue.forEach((pc) => items.push(pc));
+      p.queue.forEach((pc, s, k, pid) => items.push(this.multi(p) ? `P${pid}@${pc}` : String(pc)));
       const pcs = p.alive ? items.map((x, k) => `<span class="${k === 0 ? 'q-first' : ''}">${x}</span>`).join(' → ') : '☠';
       return `<span class="mini-q"><b style="color:${p.color}">${esc(p.name)}</b> · ${this.T.pc}: <b>${pcs}</b>${items.length > 1 ? ` <small>(${this.T.queue(items.length)})</small>` : ''}</span>`;
+    }).join('');
+    if (this.demo.showHistory) this.renderHistory();
+    if (this.demo.showSource) this.renderSource(heads);
+  }
+
+  /** Has this program ever had more than one process? Then processes are labelled P1, P2 … */
+  multi(p) { return p.nextPid > 2; }
+
+  renderHistory() {
+    const T = this.T;
+    const chips = this.history.map((h, k) => `<span class="hist-chip${k === this.history.length - 1 ? ' last' : ''}" style="--c:${h.p.color}">
+      <b>${esc(h.p.name)}</b>${this.multi(h.p) ? ` P${h.pid}` : ''}<small>${T.histCell(h.pc)}</small></span>`).join('<i class="hist-arrow">›</i>');
+    this.historyEl.innerHTML = `<div class="hist-title">${T.histTitle}</div><div class="hist-strip">${chips || `<span class="muted">${T.histEmpty}</span>`}</div>`;
+  }
+
+  /** Shows every source line next to the cell it was placed in. */
+  renderSource(heads) {
+    const T = this.T;
+    const a = this.arena;
+    this.sourceEl.innerHTML = this.demo.programs.map((d, i) => {
+      const p = a.players[i];
+      const pr = this.progs[i];
+      const cellOfLine = new Map(pr.instructions.map((ins, k) => [ins.line, (d.start + k) % MINI]));
+      const rows = (d.code[this.lang] || d.code.en).split('\n').map((line, ln) => {
+        const cell = cellOfLine.get(ln + 1);
+        const isEqu = /^\s*[A-Za-z_]\w*\s+EQU\b/i.test(line.split(';')[0]);
+        const h = cell != null ? heads.get(cell) : null;
+        const cls = ['src-row'];
+        if (cell != null && h && h.p === p) cls.push('src-pc');
+        if (cell != null && cell === this.lastPc && a.owner[cell] === i) cls.push('src-ran');
+        if (cell != null && this.changed.has(cell)) cls.push('src-chg');
+        const where = cell != null ? `<span class="src-cell">${cell}</span>` : `<span class="src-none">${line.trim() && isEqu ? T.constCell : line.trim() ? T.noCell : ''}</span>`;
+        return `<div class="${cls.join(' ')}" ${cell != null ? `data-cell="${cell}"` : ''} style="--c:${p.color}">${where}<code>${highlightLine(line) || '&nbsp;'}</code></div>`;
+      }).join('');
+      return `<div class="src-block"><div class="src-title">${T.srcTitle(this.who(p))}</div>${rows}</div>`;
     }).join('');
   }
 }

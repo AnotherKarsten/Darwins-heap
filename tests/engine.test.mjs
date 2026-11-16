@@ -173,3 +173,16 @@ test('editor context help explains what is under the cursor', async () => {
   assert.match(strip(contextHelp(code, at('@value', 0), 'en', settings)), /Addressing mode @/);
   assert.match(strip(contextHelp(code, at('#CORESIZE', 2), 'de', settings)), /Eingebaute Konstante CORESIZE/);
 });
+
+test('processes keep a stable number; SPL gives the new one the next number', () => {
+  const a = new Arena({ seed: 1, coreSize: 32, minDistance: 0 });
+  a.load([{ name: 's', program: prog('start SPL two\none JMP one\ntwo JMP two', { coreSize: 32 }) }], [0]);
+  a.tick();
+  const seen = [];
+  a.players[0].queue.forEach((pc, s, k, pid) => seen.push([pc, pid]));
+  assert.deepEqual(seen, [[1, 1], [2, 2]]);
+  a.run(5);
+  const pids = [];
+  a.players[0].queue.forEach((pc, s, k, pid) => pids.push(`${pid}@${pc}`));
+  assert.deepEqual(pids.sort(), ['1@1', '2@2']);
+});

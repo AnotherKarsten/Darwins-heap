@@ -25,13 +25,15 @@ class ProcessQueue {
     this.cap = capacity;
     this.pc = new Int32Array(capacity);
     this.sleep = new Int32Array(capacity);
+    this.pid = new Int32Array(capacity);   // stable process number (1, 2, 3 …) for teaching views
     this.head = 0;
     this.count = 0;
   }
-  push(pc, sleep = 0) {
+  push(pc, sleep = 0, pid = 0) {
     const i = (this.head + this.count) % this.cap;
     this.pc[i] = pc;
     this.sleep[i] = sleep;
+    this.pid[i] = pid;
     this.count++;
   }
   shift() {
@@ -40,12 +42,12 @@ class ProcessQueue {
     this.count--;
     return i;
   }
-  /** Calls fn(pc, sleep, position) for up to `limit` processes. */
+  /** Calls fn(pc, sleep, position, pid) for up to `limit` processes. */
   forEach(fn, limit = Infinity) {
     const n = Math.min(this.count, limit);
     for (let k = 0; k < n; k++) {
       const i = (this.head + k) % this.cap;
-      fn(this.pc[i], this.sleep[i], k);
+      fn(this.pc[i], this.sleep[i], k, this.pid[i]);
     }
   }
 }
@@ -123,7 +125,8 @@ export class Arena {
         this.setOwner(a, id);
         this.lastWrite[a] = 0;
       });
-      player.queue.push((start + w.program.org) % n);
+      player.queue.push((start + w.program.org) % n, 0, 1);
+      player.nextPid = 2;
     });
     this.sample(true);
     this.emit({ type: 'start', players: this.players.map((p) => p.id) });
@@ -278,7 +281,8 @@ export class Arena {
     const slot = q.shift();
     const pc = q.pc[slot];
     const sleep = q.sleep[slot];
-    if (sleep > 0) { q.push(pc, sleep - 1); p.waits++; return; }
+    const pid = q.pid[slot];
+    if (sleep > 0) { q.push(pc, sleep - 1, pid); p.waits++; return; }
 
     const id = p.id;
     this.lastExec[pc] = this.cycle;
@@ -313,7 +317,7 @@ export class Arena {
           this.bm[bAddr] = sBm; this.bv[bAddr] = sBv;
         }
         this.markWrite(bAddr, id);
-        q.push(next);
+        q.push(next, 0, pid);
         return;
       case OP.ADD:
       case OP.SUB: {
@@ -324,22 +328,22 @@ export class Arena {
           this.bv[bAddr] = normalize(this.bv[bAddr] + sign * sBv, n);
         }
         this.markWrite(bAddr, id);
-        q.push(next);
+        q.push(next, 0, pid);
         return;
       }
       case OP.JMP:
-        q.push(aAddr);
+        q.push(aAddr, 0, pid);
         return;
       case OP.JMZ:
-        q.push(this.bv[bAddr] === 0 ? aAddr : next);
+        q.push(this.bv[bAddr] === 0 ? aAddr : next, 0, pid);
         return;
       case OP.JMN:
-        q.push(this.bv[bAddr] !== 0 ? aAddr : next);
+        q.push(this.bv[bAddr] !== 0 ? aAddr : next, 0, pid);
         return;
       case OP.DJN: {
         this.bv[bAddr] = this.bv[bAddr] === 0 ? n - 1 : this.bv[bAddr] - 1;
         this.markWrite(bAddr, id);
-        q.push(this.bv[bAddr] !== 0 ? aAddr : next);
+        q.push(this.bv[bAddr] !== 0 ? aAddr : next, 0, pid);
         return;
       }
       case OP.SEQ:
@@ -351,18 +355,18 @@ export class Arena {
             && sBm === this.bm[bAddr] && sBv === this.bv[bAddr];
         }
         const skip = op === OP.SEQ ? equal : !equal;
-        q.push(skip ? (pc + 2) % n : next);
+        q.push(skip ? (pc + 2) % n : next, 0, pid);
         return;
       }
       case OP.SLT: {
         const a = am === MODE.IMM ? sAv : sBv;
-        q.push(a < this.bv[bAddr] ? (pc + 2) % n : next);
+        q.push(a < this.bv[bAddr] ? (pc + 2) % n : next, 0, pid);
         return;
       }
       case OP.SPL:
-        q.push(next);
+        q.push(next, 0, pid);
         if (q.count < this.maxProcesses) {
-          q.push(aAddr);
+          q.push(aAddr, 0, p.nextPid++);
           p.spawns++;
           if (q.count > p.maxProcs) p.maxProcs = q.count;
         } else {
@@ -371,18 +375,18 @@ export class Arena {
         }
         return;
       case OP.NOP:
-        q.push(next);
+        q.push(next, 0, pid);
         return;
       case OP.WAIT: {
         const v = am === MODE.IMM ? sAv : sBv;
-        q.push(next, Math.min(v, MAX_WAIT));
+        q.push(next, Math.min(v, MAX_WAIT), pid);
         return;
       }
       case OP.RND: {
         const range = am === MODE.IMM ? sAv : sBv;
         this.bv[bAddr] = this.rng.int(range > 0 ? range : n);
         this.markWrite(bAddr, id);
-        q.push(next);
+        q.push(next, 0, pid);
         return;
       }
       default:

@@ -38,7 +38,7 @@ Alle anderen Zellen sind leer: In ihnen steht <code>DAT #0, #0</code>, das heiß
   },
   {
     id: 'bcell',
-    demo: { programs: [{ start: 4, code: COUNTER }], noSteps: true, hidePc: true, select: 4 },
+    demo: { showSource: true, programs: [{ start: 4, code: COUNTER }], noSteps: true, hidePc: true, select: 4 },
     en: {
       title: 'Inside a cell: A field and B field',
       subtitle: 'Every instruction has exactly three parts',
@@ -78,7 +78,7 @@ Alle anderen Zellen sind leer: In ihnen steht <code>DAT #0, #0</code>, das heiß
   },
   {
     id: 'bpc',
-    demo: { programs: [{ start: 4, code: COUNTER }] },
+    demo: { showSource: true, programs: [{ start: 4, code: COUNTER }] },
     en: {
       title: 'Where it starts: the program counter',
       subtitle: 'Which instruction runs – and which one next?',
@@ -120,7 +120,7 @@ die Adresse der Zelle, die er als Nächstes ausführt. Diese Zahl heißt <b>Prog
   },
   {
     id: 'bcount',
-    demo: { programs: [{ start: 4, code: COUNTER }], select: 6 },
+    demo: { showSource: true, programs: [{ start: 4, code: COUNTER }], select: 6 },
     en: {
       title: 'The counter, step by step',
       subtitle: 'ADD #1, counter – taken apart completely',
@@ -154,7 +154,7 @@ darum speichert das Spiel <code>$2</code> (deshalb steht im Raster <code>$2</cod
   },
   {
     id: 'b3',
-    demo: { programs: [{ start: 2, code: {
+    demo: { showSource: true, programs: [{ start: 2, code: {
       en: 'start   MOV #7, box_a      ; write 7 into box_a\n        MOV box_a, box_b   ; copy box_a to box_b\n        ADD #1, box_b      ; box_b + 1\n        JMP start\nbox_a   DAT #0, #0\nbox_b   DAT #0, #0',
       de: 'start   MOV #7, kiste_a       ; 7 in kiste_a schreiben\n        MOV kiste_a, kiste_b  ; kiste_a nach kiste_b kopieren\n        ADD #1, kiste_b       ; kiste_b + 1\n        JMP start\nkiste_a DAT #0, #0\nkiste_b DAT #0, #0',
     } }] },
@@ -193,7 +193,7 @@ Darum zeigt das Raster <code>MOV #7, $4</code> statt <code>MOV #7, kiste_a</code
   },
   {
     id: 'bconst',
-    demo: { programs: [{ start: 2, code: {
+    demo: { showSource: true, programs: [{ start: 2, code: {
       en: `;name Count demo
 ;strategy Comments like this one are ignored by the game.
 step    EQU 3                  ; constant: a fixed number, uses no cell
@@ -268,6 +268,64 @@ loop    ADD #1, wert    ; dieser Teil ist auch ein Kommentar</pre>
 <pre>wert    DAT #0, #0      ; definiert die Variable "wert", Startwert 0</pre>
 <p>Anders als eine Konstante <b>kann sich eine Variable während des Laufs ändern</b> – und weil sie eine ganz normale Zelle ist, kann ein Gegner sie auch überschreiben.</p>
 <p class="tip">Im Raster siehst du den Unterschied: Die Konstante <i>schritt</i> hat <b>keine Zelle</b> – bei <code>ADD #schritt</code> steht schon <code>#3</code>. Die Variablen <i>haelfte</i> und <i>wert</i> sind echte Zellen. Drück auf <b>Schritt</b> und beobachte ihre <span class="fb">B-Felder</span>.</p>`,
+    },
+  },
+  {
+    id: 'bplace',
+    demo: { showSource: true, select: 4, programs: [
+      { start: 4, code: {
+        en: `step    DAT #1             ; variable BEFORE the code
+start   MOV 0, step        ; copies THIS INSTRUCTION into step!
+        MOV #0, number     ; writes the NUMBER 0 into number
+        ADD #1, number
+        JMP start
+number  DAT #0, #0         ; variable AFTER the code`,
+        de: `step    DAT #1             ; Variable VOR dem Code
+start   MOV 0, step        ; kopiert DIESEN BEFEHL nach step!
+        MOV #0, zahl       ; schreibt die ZAHL 0 nach zahl
+        ADD #1, zahl
+        JMP start
+zahl    DAT #0, #0         ; Variable NACH dem Code`,
+      } },
+      { start: 28, code: { en: '        MOV 0, 1', de: '        MOV 0, 1' } },
+    ] },
+    en: {
+      title: 'Where do my variables end up?',
+      subtitle: 'Code and variables in memory – with a real example',
+      html: `
+<p><b>Rule 1: every line takes exactly the place where you write it.</b> The assembler puts the lines of your program – instructions <i>and</i> variables – into <b>consecutive cells</b>, in exactly the order of your code. Line by line, cell by cell.
+Nothing is sorted or moved to the end. There is no separate area for variables.</p>
+<p>Lines without an instruction take <b>no cell</b>: empty lines, comment lines and constants (<code>EQU</code>).</p>
+<p><b>Rule 2: where the whole block lands is decided by the game.</b> At the start of a match the program is copied to a random place (here cell 4). The order inside never changes – and because all addresses are relative, <code>step</code> always means “that many cells from here”, wherever the program lands.</p>
+<p>Next to the grid, <b>“code → cells”</b> shows which cell every line got. Here <i>step</i> stands <b>before</b> the code (cell 4) and <i>number</i> <b>after</b> it (cell 9) – simply because that is where they are written.</p>
+<h4>Your example: <code>MOV 0, step</code> with <code>step DAT #1</code></h4>
+<ul>
+<li><code>step DAT #1</code> is the same as <code>DAT #0, #1</code>: a cell with the number 1 in its <span class="fb">B field</span>. It is stored exactly at the line where it stands – here cell 4.</li>
+<li><code>MOV 0, step</code> copies cell <b>0</b> – that is the <b>MOV instruction itself</b> – into <i>step</i>. Afterwards <i>step</i> no longer contains a number but a copy of the instruction! Press <b>Step</b> once and look at cell 4.</li>
+<li>If you wanted to write the <b>number</b> 0 into <i>step</i>: <code>MOV #0, step</code> (with <code>#</code>), as in the next line for <i>number</i>.</li>
+</ul>
+<h4>Can other programs overwrite my variable?</h4>
+<p><b>Yes.</b> The memory has no protection at all: every program may write into every cell – including your variables and your code. The pink Imp shows it: after a few steps it crawls into the blue program and overwrites <i>step</i>, then the code.</p>
+<p class="tip"><b>Important:</b> a variable must never lie in the path of the PC. If the process runs onto a <code>DAT</code>, it dies. That is why variables belong <b>behind a <code>JMP</code></b> (at the end) or <b>before the <code>start</code> label</b> (at the beginning) – exactly as in this example.</p>`,
+    },
+    de: {
+      title: 'Wo landen meine Variablen?',
+      subtitle: 'Code und Variablen im Speicher – an einem echten Beispiel',
+      html: `
+<p><b>Regel 1: Jede Zeile bekommt genau den Platz, an dem du sie schreibst.</b> Der Assembler legt die Zeilen deines Programms – Befehle <i>und</i> Variablen – in <b>aufeinanderfolgende Zellen</b>, genau in der Reihenfolge deines Codes. Zeile für Zeile, Zelle für Zelle.
+Es wird nichts sortiert und nichts ans Ende verschoben. Einen eigenen Bereich für Variablen gibt es nicht.</p>
+<p>Zeilen ohne Befehl belegen <b>keine Zelle</b>: leere Zeilen, Kommentarzeilen und Konstanten (<code>EQU</code>).</p>
+<p><b>Regel 2: Wo der ganze Block landet, entscheidet das Spiel.</b> Zu Beginn einer Partie wird das Programm an eine zufällige Stelle kopiert (hier Zelle 4). Die Reihenfolge darin ändert sich nie – und weil alle Adressen relativ sind, heißt <code>step</code> immer „so viele Zellen von hier“, egal wo das Programm landet.</p>
+<p>Neben dem Raster zeigt <b>„Code → Zellen“</b>, welche Zelle jede Zeile bekommen hat. Hier steht <i>step</i> <b>vor</b> dem Code (Zelle 4) und <i>zahl</i> <b>dahinter</b> (Zelle 9) – einfach weil sie dort geschrieben sind.</p>
+<h4>Dein Beispiel: <code>MOV 0, step</code> mit <code>step DAT #1</code></h4>
+<ul>
+<li><code>step DAT #1</code> ist dasselbe wie <code>DAT #0, #1</code>: eine Zelle mit der Zahl 1 im <span class="fb">B-Feld</span>. Sie liegt genau dort, wo die Zeile steht – hier Zelle 4.</li>
+<li><code>MOV 0, step</code> kopiert die Zelle <b>0</b> – das ist <b>der MOV-Befehl selbst</b> – nach <i>step</i>. Danach steht in <i>step</i> keine Zahl mehr, sondern eine Kopie des Befehls! Drück einmal auf <b>Schritt</b> und schau dir Zelle 4 an.</li>
+<li>Wolltest du die <b>Zahl</b> 0 nach <i>step</i> schreiben: <code>MOV #0, step</code> (mit <code>#</code>), so wie in der nächsten Zeile für <i>zahl</i>.</li>
+</ul>
+<h4>Können andere Programme meine Variable überschreiben?</h4>
+<p><b>Ja.</b> Der Speicher hat keinerlei Schutz: Jedes Programm darf in jede Zelle schreiben – auch in deine Variablen und deinen Code. Der pinke Wichtel zeigt es: Nach ein paar Schritten kriecht er in das blaue Programm und überschreibt <i>step</i>, danach den Code.</p>
+<p class="tip"><b>Wichtig:</b> Eine Variable darf nie im Weg des PC liegen. Läuft der Prozess auf ein <code>DAT</code>, stirbt er. Darum gehören Variablen <b>hinter ein <code>JMP</code></b> (ans Ende) oder <b>vor das Label <code>start</code></b> (an den Anfang) – genau wie in diesem Beispiel.</p>`,
     },
   },
   {
@@ -365,7 +423,7 @@ kopie   DAT #0, #0`,
   },
   {
     id: 'b5',
-    demo: { programs: [
+    demo: { showSource: true, showHistory: true, programs: [
       { start: 2, code: { en: 'start   ADD #1, counter\n        JMP start\ncounter DAT #0, #0', de: 'start   ADD #1, zaehler\n        JMP start\nzaehler DAT #0, #0' } },
       { start: 18, code: { en: '        MOV 0, 1', de: '        MOV 0, 1' } },
     ] },
@@ -396,7 +454,7 @@ So kriecht er durch den Speicher und färbt alles pink. Kriecht er über das bla
   },
   {
     id: 'b6',
-    demo: { programs: [{ start: 3, code: {
+    demo: { showSource: true, showHistory: true, programs: [{ start: 3, code: {
       en: 'start   SPL other     ; split: a 2nd process starts at "other"\nloop    ADD #1, a\n        JMP loop\nother   ADD #1, b\n        JMP other\na       DAT #0, #0\nb       DAT #0, #0',
       de: 'start   SPL zweiter   ; teilen: 2. Prozess startet bei "zweiter"\nloop    ADD #1, a\n        JMP loop\nzweiter ADD #1, b\n        JMP zweiter\na       DAT #0, #0\nb       DAT #0, #0',
     } }] },
@@ -421,6 +479,99 @@ Der alte Prozess macht einfach weiter, und zusätzlich startet ein <b>neuer Proz
 Mehr Prozesse machen ein Programm also <b>nicht</b> schneller – sie wechseln sich ab. Aber sie machen es <b>schwerer zu besiegen</b>: Das Programm lebt, solange irgendein Prozess lebt.</p>
 <p>Unter dem Raster siehst du die Warteschlange: Der erste Eintrag ist als Nächstes dran.</p>
 <p class="tip">Geh Schritt für Schritt: Nach SPL gibt es zwei ▶-Pfeile, die sich abwechseln. Einer zählt <i>a</i> hoch, der andere <i>b</i>.</p>`,
+    },
+  },
+  {
+    id: 'bproc',
+    demo: { showSource: true, showHistory: true, programs: [
+      { start: 1, code: {
+        en: `start   SPL two       ; P1 splits: P2 starts at "two"
+one     ADD #1, a     ; P1 counts a
+        JMP one
+two     ADD #1, b     ; P2 counts b
+        JMP two
+a       DAT #0, #0
+b       DAT #0, #0`,
+        de: `start   SPL zwei      ; P1 teilt sich: P2 startet bei "zwei"
+eins    ADD #1, a     ; P1 zählt a hoch
+        JMP eins
+zwei    ADD #1, b     ; P2 zählt b hoch
+        JMP zwei
+a       DAT #0, #0
+b       DAT #0, #0`,
+      } },
+      { start: 20, code: {
+        en: `loop    ADD #1, c     ; Pink has only one process
+        JMP loop
+c       DAT #0, #0`,
+        de: `loop    ADD #1, c     ; Pink hat nur einen Prozess
+        JMP loop
+c       DAT #0, #0`,
+      } },
+    ] },
+    en: {
+      title: 'Processes: one after another, never at once',
+      subtitle: 'The exact order – and the pros and cons of many processes',
+      html: `
+<p>A <b>process</b> is a “worker” that executes a program: it only remembers its <b>PC</b> (which cell is next). A program can have several of them; they are numbered <b>P1, P2, …</b> in order of creation.</p>
+<h4>Parallel or sequential?</h4>
+<p><b>Strictly sequential.</b> The simulated computer executes <b>exactly one instruction at a time</b>. It only looks parallel because the turns alternate very quickly. The order follows two simple rules:</p>
+<ol>
+<li><b>Programs take turns:</b> Blue, Pink, Blue, Pink … Each program gets <b>one instruction per cycle</b> – no matter how many processes it has.</li>
+<li><b>Within a program, the processes take turns:</b> they wait in a queue. Only the <b>front</b> one executes one instruction, then it goes to the <b>back</b>.</li>
+</ol>
+<p>For the program below that means:</p>
+<table class="mode-table">
+<tr><th>Turn</th><th>Who</th><th>What happens</th></tr>
+<tr><td>1</td><td><b class="c-blue">Blue P1</b></td><td>SPL – P2 is created and queues up behind P1</td></tr>
+<tr><td>2</td><td><b class="c-pink">Pink P1</b></td><td>counts c</td></tr>
+<tr><td>3</td><td><b class="c-blue">Blue P1</b></td><td>counts a</td></tr>
+<tr><td>4</td><td><b class="c-pink">Pink P1</b></td><td>…</td></tr>
+<tr><td>5</td><td><b class="c-blue">Blue P2</b></td><td>counts b</td></tr>
+<tr><td>6</td><td><b class="c-pink">Pink P1</b></td><td>…</td></tr>
+<tr><td>7</td><td><b class="c-blue">Blue P1</b></td><td>… and so on</td></tr>
+</table>
+<p>Blue's two processes share Blue's turns: <b>each of them runs only half as often</b> as Pink's single process. With 10 processes each would run only every 10th Blue turn.</p>
+<h4>Advantages and disadvantages of many processes</h4>
+<table class="mode-table">
+<tr><th>👍 Advantages</th><th>👎 Disadvantages</th></tr>
+<tr><td><b>Hard to kill:</b> a program is only out when <i>all</i> its processes are dead.</td><td><b>Each process gets slower:</b> the turns are shared, the program as a whole does not become faster.</td></tr>
+<tr><td><b>Several jobs at once:</b> e.g. one process bombs while another crawls away as a lifeboat.</td><td><b>A bomber with many processes bombs no faster</b> than with one.</td></tr>
+<tr><td><b>Copies can come to life:</b> replicators like Mitosis start each copy with its own process.</td><td>There is a <b>process limit</b> (MAXPROCESSES); beyond it SPL does nothing.</td></tr>
+</table>
+<p class="tip">Press <b>Step</b> a few times and watch the strip <b>“execution order”</b>: it lists exactly who ran, in order. The ▶ badges in the grid carry the process numbers.</p>`,
+    },
+    de: {
+      title: 'Prozesse: nacheinander, nie gleichzeitig',
+      subtitle: 'Die genaue Reihenfolge – und Vor- und Nachteile vieler Prozesse',
+      html: `
+<p>Ein <b>Prozess</b> ist ein „Arbeiter“, der ein Programm ausführt: Er merkt sich nur seinen <b>PC</b> (welche Zelle als Nächstes dran ist). Ein Programm kann mehrere davon haben; sie werden in der Reihenfolge ihrer Entstehung <b>P1, P2, …</b> genannt.</p>
+<h4>Parallel oder nacheinander?</h4>
+<p><b>Streng nacheinander.</b> Der simulierte Computer führt <b>immer genau einen Befehl auf einmal</b> aus. Es sieht nur parallel aus, weil sich alle sehr schnell abwechseln. Die Reihenfolge folgt zwei einfachen Regeln:</p>
+<ol>
+<li><b>Die Programme wechseln sich ab:</b> Blau, Pink, Blau, Pink … Jedes Programm bekommt <b>einen Befehl pro Zyklus</b> – egal wie viele Prozesse es hat.</li>
+<li><b>Innerhalb eines Programms wechseln sich die Prozesse ab:</b> Sie stehen in einer Warteschlange. Nur der <b>vorderste</b> führt einen Befehl aus und stellt sich dann <b>hinten</b> an.</li>
+</ol>
+<p>Für das Programm unten heißt das:</p>
+<table class="mode-table">
+<tr><th>Zug</th><th>Wer</th><th>Was passiert</th></tr>
+<tr><td>1</td><td><b class="c-blue">Blau P1</b></td><td>SPL – P2 entsteht und stellt sich hinter P1 an</td></tr>
+<tr><td>2</td><td><b class="c-pink">Pink P1</b></td><td>zählt c hoch</td></tr>
+<tr><td>3</td><td><b class="c-blue">Blau P1</b></td><td>zählt a hoch</td></tr>
+<tr><td>4</td><td><b class="c-pink">Pink P1</b></td><td>…</td></tr>
+<tr><td>5</td><td><b class="c-blue">Blau P2</b></td><td>zählt b hoch</td></tr>
+<tr><td>6</td><td><b class="c-pink">Pink P1</b></td><td>…</td></tr>
+<tr><td>7</td><td><b class="c-blue">Blau P1</b></td><td>… und so weiter</td></tr>
+</table>
+<p>Die zwei Prozesse von Blau teilen sich die Züge von Blau: <b>Jeder von ihnen kommt nur halb so oft dran</b> wie der eine Prozess von Pink. Mit 10 Prozessen käme jeder nur bei jedem 10. Zug von Blau dran.</p>
+<h4>Vor- und Nachteile vieler Prozesse</h4>
+<table class="mode-table">
+<tr><th>👍 Vorteile</th><th>👎 Nachteile</th></tr>
+<tr><td><b>Schwer zu besiegen:</b> Ein Programm scheidet erst aus, wenn <i>alle</i> seine Prozesse tot sind.</td><td><b>Jeder Prozess wird langsamer:</b> Die Züge werden geteilt, das Programm als Ganzes wird nicht schneller.</td></tr>
+<tr><td><b>Mehrere Aufgaben gleichzeitig:</b> z. B. ein Prozess bombardiert, ein anderer kriecht als Rettungsboot davon.</td><td><b>Ein Bomber mit vielen Prozessen bombt nicht schneller</b> als mit einem.</td></tr>
+<tr><td><b>Kopien können leben:</b> Replikatoren wie die Mitose starten jede Kopie mit einem eigenen Prozess.</td><td>Es gibt ein <b>Prozesslimit</b> (MAXPROCESSES); darüber hinaus bewirkt SPL nichts.</td></tr>
+</table>
+<p class="tip">Drück ein paar Mal auf <b>Schritt</b> und beobachte die Leiste <b>„Reihenfolge der Ausführung“</b>: Sie zeigt genau, wer nacheinander dran war. Die ▶-Abzeichen im Raster tragen die Prozessnummern.</p>`,
     },
   },
   {
