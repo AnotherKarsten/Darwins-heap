@@ -1,31 +1,37 @@
-// Darwin's Heap – Steuerung der Benutzeroberfläche
+// Darwin's Heap – user interface controller
 
 import { assemble } from './engine/assembler.js';
 import { Arena } from './engine/arena.js';
 import { OP_NAMES, OP_INFO, disassemble } from './engine/isa.js';
 import { randomSeed } from './engine/rng.js';
-import { BOTS, BOT_BY_ID, LEVEL_LABELS, STARTER_CODE } from './engine/warriors.js';
+import { BOTS, BOT_BY_ID, STARTER_CODE, botText } from './engine/warriors.js';
 import { ArenaRenderer, PLAYER_COLORS } from './ui/renderer.js';
 import { drawLines } from './ui/charts.js';
 import { CodeEditor } from './ui/editor.js';
-import { LESSONS } from './ui/lessons.js';
+import { LESSONS, lessonText } from './ui/lessons.js';
+import { BASICS, MiniSim } from './ui/basics.js';
 import { manualHtml } from './ui/manual.js';
 import * as store from './ui/storage.js';
+import { t, dict, setLang, getLang, detectLang, applyDom, locale } from './i18n/index.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const fmt = (n) => Math.round(n).toLocaleString('de-DE');
+const fmt = (n) => Math.round(n).toLocaleString(locale());
+const colored = (p) => `<b style="color:${p.color}">${esc(p.name)}</b>`;
 
 const SPEEDS = [0.5, 1, 2, 4, 8, 15, 30, 60, 120, 250, 500, 1000, 2500, 5000, 10000, 30000, Infinity];
 const MAX_SLOTS = 4;
 const DEFAULT_SETTINGS = { coreSize: 4000, maxCycles: 0, maxProcesses: 1000, seedMode: 'random', seed: 4711, grid: true, heads: true };
+const isBasic = (id) => BASICS.some((b) => b.id === id);
+const textOf = (item, lang) => item[lang] || item.en;
 
 let uidCounter = 1;
-const newSlot = (props) => ({ uid: uidCounter++, kind: 'custom', botId: 'zwerg', name: 'Mein Programm', code: STARTER_CODE, ...props });
+const newSlot = (props) => ({ uid: uidCounter++, kind: 'custom', botId: 'zwerg', name: '', code: STARTER_CODE[getLang()], ...props });
 
 class App {
   constructor() {
+    setLang(detectLang(store.load('lang', null)));
     this.settings = { ...DEFAULT_SETTINGS, ...store.load('settings', {}) };
     this.slots = this.restoreSlots();
     this.progress = store.load('progress', {});
@@ -51,24 +57,68 @@ class App {
     this.bindDialogs();
     this.bindKeyboard();
     this.setupEditor();
-    this.renderSlots();
-    this.setSpeed(this.speedIndex);
-    $('#manual-body').innerHTML = manualHtml();
+    this.applyLanguage();
 
     new ResizeObserver(() => { this.renderer.resize(); this.renderer.render(); }).observe($('#canvas-wrap'));
     this.rebuild();
-    requestAnimationFrame((t) => this.frame(t));
+    requestAnimationFrame((tt) => this.frame(tt));
 
     const shared = store.readShared();
     if (shared) this.importShared(shared);
     else if (!store.load('welcomed', false)) $('#welcome-dialog').showModal();
   }
 
-  // ---------------------------------------------------------------- Slots
+  // ---------------------------------------------------------------- language
+  /** Re-renders every text in the current language. */
+  applyLanguage() {
+    applyDom();
+    $$('.lang-btn').forEach((b) => b.classList.toggle('active', b.dataset.lang === getLang()));
+    $('#manual-body').innerHTML = manualHtml();
+    this.renderEditorChrome();
+    this.renderSlots();
+    this.setSpeed(this.speedIndex);
+    if (this.arena && (this.running || this.arena.cycle > 0)) {
+      // a match is in progress: keep it, just rename the programs and refresh all panels
+      this.slots.forEach((slot, i) => { if (this.arena.players[i]) this.arena.players[i].name = this.slotName(slot); });
+      this.renderPlayerCards();
+      this.fillFollowSelect();
+      $('#seed-label').textContent = t('seed', { seed: this.currentSeed });
+      $('#cycle-max').textContent = fmt(this.arena.maxCycles);
+      this.updateUi(true);
+      this.renderer.render();
+    } else if (this.arena || this.slots.some((s) => !this.slotAsm(s).ok)) {
+      this.rebuild({ newSeed: false });
+    }
+    if (this.lesson) this.updateGoalBanner(this.goalState);
+    if ($('#tutorial-dialog').open) { this.renderLessonList(this.shownLesson); this.renderLesson(this.shownLesson); }
+  }
+
+  switchLanguage(code) {
+    const old = getLang();
+    if (code === old) return;
+    // Untouched templates follow the language; anything the player wrote stays as it is.
+    for (const slot of this.slots) {
+      if (slot.kind !== 'custom') continue;
+      let swapped = null;
+      if (slot.code === STARTER_CODE[old]) swapped = STARTER_CODE[code];
+      for (const l of LESSONS) if (l[old] && slot.code === l[old].code && l[code]) swapped = l[code].code;
+      if (swapped != null) {
+        const oldName = assemble(slot.code).name;
+        slot.code = swapped;
+        if (!slot.name || slot.name === oldName) slot.name = '';
+      }
+    }
+    setLang(code);
+    store.save('lang', code);
+    this.saveSlots();
+    this.applyLanguage();
+  }
+
+  // ---------------------------------------------------------------- slots
   restoreSlots() {
     const saved = store.load('slots', null);
     if (Array.isArray(saved) && saved.length) {
-      return saved.slice(0, MAX_SLOTS).map((s) => newSlot({ kind: s.kind, botId: BOT_BY_ID[s.botId] ? s.botId : 'zwerg', name: s.name, code: s.code ?? STARTER_CODE }));
+      return saved.slice(0, MAX_SLOTS).map((s) => newSlot({ kind: s.kind, botId: BOT_BY_ID[s.botId] ? s.botId : 'zwerg', name: s.name || '', code: s.code ?? STARTER_CODE[getLang()] }));
     }
     return [newSlot({}), newSlot({ kind: 'bot', botId: 'zwerg' })];
   }
@@ -77,14 +127,14 @@ class App {
     store.save('slots', this.slots.map(({ kind, botId, name, code }) => ({ kind, botId, name, code })));
   }
 
-  slotCode(slot) { return slot.kind === 'bot' ? BOT_BY_ID[slot.botId].code : slot.code; }
+  slotCode(slot) { return slot.kind === 'bot' ? botText(BOT_BY_ID[slot.botId], getLang()).code : slot.code; }
 
   slotAsm(slot) {
     const code = this.slotCode(slot);
-    const key = `${this.settings.coreSize}|${this.settings.maxProcesses}|${code}`;
+    const key = `${getLang()}|${this.settings.coreSize}|${this.settings.maxProcesses}|${code}`;
     let r = this.asmCache.get(key);
     if (!r) {
-      r = assemble(code, { coreSize: this.settings.coreSize, maxProcesses: this.settings.maxProcesses });
+      r = assemble(code, { coreSize: this.settings.coreSize, maxProcesses: this.settings.maxProcesses, lang: getLang() });
       if (this.asmCache.size > 200) this.asmCache.clear();
       this.asmCache.set(key, r);
     }
@@ -92,41 +142,43 @@ class App {
   }
 
   slotName(slot) {
-    if (slot.kind === 'bot') return BOT_BY_ID[slot.botId].name;
-    return slot.name || this.slotAsm(slot).name || 'Programm';
+    if (slot.kind === 'bot') return botText(BOT_BY_ID[slot.botId], getLang()).name;
+    return slot.name || this.slotAsm(slot).name || t('name.fallback');
   }
 
   renderSlots() {
     const host = $('#slots');
     host.innerHTML = '';
+    const lang = getLang();
     this.slots.forEach((slot, i) => {
       const asm = this.slotAsm(slot);
       const bot = slot.kind === 'bot' ? BOT_BY_ID[slot.botId] : null;
       const el = document.createElement('div');
       el.className = 'slot' + (asm.ok ? '' : ' error');
       el.style.setProperty('--c', PLAYER_COLORS[i]);
-      const options = [`<option value="custom" ${slot.kind === 'custom' ? 'selected' : ''}>✍️ Eigener Code</option>`]
-        .concat(BOTS.map((b) => `<option value="bot:${b.id}" ${bot && bot.id === b.id ? 'selected' : ''}>🤖 ${esc(b.name)} (${LEVEL_LABELS[b.level]})</option>`))
+      const options = [`<option value="custom" ${slot.kind === 'custom' ? 'selected' : ''}>${esc(t('slot.custom'))}</option>`]
+        .concat(BOTS.map((b) => `<option value="bot:${b.id}" ${bot && bot.id === b.id ? 'selected' : ''}>${esc(t('slot.bot', { name: botText(b, lang).name, level: t(`level.${b.level}`) }))}</option>`))
         .join('');
+      const name = this.slotName(slot);
       el.innerHTML = `
         <div class="slot-top">
           <span class="color-dot" style="--c:${PLAYER_COLORS[i]}"></span>
-          <span class="slot-name" title="${esc(this.slotName(slot))}">${esc(this.slotName(slot))}</span>
-          <button class="btn small ghost" data-act="edit" title="Code ansehen und bearbeiten">✎</button>
-          <button class="btn small ghost" data-act="remove" title="Entfernen" ${this.slots.length <= 1 ? 'disabled' : ''}>✕</button>
+          <span class="slot-name" title="${esc(name)}">${esc(name)}</span>
+          <button class="btn small ghost" data-act="edit" title="${esc(t('slot.edit'))}" aria-label="${esc(t('slot.edit'))}">✎</button>
+          <button class="btn small ghost" data-act="remove" title="${esc(t('slot.remove'))}" aria-label="${esc(t('slot.remove'))}" ${this.slots.length <= 1 ? 'disabled' : ''}>✕</button>
         </div>
-        <select data-act="kind" aria-label="Programm wählen">${options}</select>
+        <select data-act="kind" aria-label="${esc(t('slot.choose'))}">${options}</select>
         <div class="slot-meta">
-          ${asm.ok ? `<span class="badge">${asm.length} Befehl${asm.length === 1 ? '' : 'e'}</span>` : `<span class="badge err">${asm.errors.length} Fehler</span>`}
-          ${bot ? `<span class="badge lvl${bot.level}">${LEVEL_LABELS[bot.level]}</span>` : ''}
-          ${this.lesson && i === 0 ? '<span class="badge">Lektion</span>' : ''}
+          ${asm.ok ? `<span class="badge">${esc(t('slot.instr', { n: asm.length }))}</span>` : `<span class="badge err">${esc(t('slot.errors', { n: asm.errors.length }))}</span>`}
+          ${bot ? `<span class="badge lvl${bot.level}">${esc(t(`level.${bot.level}`))}</span>` : ''}
+          ${this.lesson && i === 0 ? `<span class="badge">${esc(t('slot.lesson'))}</span>` : ''}
         </div>
-        <div class="strategy">${esc(bot ? bot.blurb : (asm.strategy || 'Klick auf ✎, um den Code zu schreiben.'))}</div>`;
+        <div class="strategy">${esc(bot ? botText(bot, lang).blurb : (asm.strategy || t('slot.hint')))}</div>`;
       el.querySelector('[data-act=edit]').onclick = () => this.openEditor(i);
       el.querySelector('[data-act=remove]').onclick = () => this.removeSlot(i);
       el.querySelector('[data-act=kind]').onchange = (e) => {
         const v = e.target.value;
-        if (v === 'custom') { slot.kind = 'custom'; }
+        if (v === 'custom') slot.kind = 'custom';
         else { slot.kind = 'bot'; slot.botId = v.slice(4); }
         this.slotsChanged();
       };
@@ -157,30 +209,30 @@ class App {
     this.rebuild();
   }
 
-  applyPreset(name) {
+  applyPreset(name, quiet = false) {
     this.exitLesson(false);
     const mine = this.slots.find((s) => s.kind === 'custom') || newSlot({});
     if (name === 'solo') this.slots = [mine, newSlot({ kind: 'bot', botId: 'zwerg' })];
     if (name === 'royale') this.slots = [mine, newSlot({ kind: 'bot', botId: 'zwerg' }), newSlot({ kind: 'bot', botId: 'wuerfler' }), newSlot({ kind: 'bot', botId: 'spaeher' })];
     if (name === 'bots') this.slots = ['zwerg', 'wuerfler', 'spaeher', 'mitose'].map((b) => newSlot({ kind: 'bot', botId: b }));
     this.slotsChanged();
-    this.toast(name === 'bots' ? 'Vier Bots bereit – drücke ▶' : 'Aufstellung geladen – drücke ▶');
+    if (!quiet) this.toast(t(name === 'bots' ? 'toast.bots' : 'toast.preset'));
   }
 
-  // ---------------------------------------------------------------- Partie
+  // ---------------------------------------------------------------- match
   rebuild({ newSeed = true } = {}) {
     this.pause();
     const errors = [];
     const warriors = this.slots.map((slot, i) => {
       const asm = this.slotAsm(slot);
-      if (!asm.ok) errors.push(`${this.slotName(slot)}: Zeile ${asm.errors[0].line} – ${asm.errors[0].msg}`);
+      if (!asm.ok) errors.push(t('err.line', { name: this.slotName(slot), line: asm.errors[0].line, msg: asm.errors[0].msg }));
       return { name: this.slotName(slot), color: PLAYER_COLORS[i], program: asm, meta: { author: asm.author, strategy: asm.strategy } };
     });
     if (errors.length) {
       this.arena = null;
       this.renderer.arena = null;
       this.renderer.render();
-      this.setOverlay('Programm mit Fehlern', errors[0], false);
+      this.setOverlay(t('overlay.errors'), errors[0], false);
       this.renderPlayerCards();
       return false;
     }
@@ -198,28 +250,39 @@ class App {
       this.arena.load(warriors);
     } catch (e) {
       this.arena = null;
-      this.setOverlay('Das passt nicht', e.message, false);
+      this.setOverlay(t('overlay.noFit'), e.code === 'CORE_TOO_SMALL' ? t('err.coreTooSmall') : e.message, false);
       return false;
     }
     this.arena.on((ev) => this.onArenaEvent(ev));
     this.renderer.setArena(this.arena);
     this.dirty = false;
     this.resultShown = false;
+    this.goalState = null;
     $('#event-log').innerHTML = '';
-    this.logEvent(0, `Partie geladen · ${warriors.length} Programm${warriors.length === 1 ? '' : 'e'} · Seed ${seed}`);
+    this.logEvent(0, esc(t('log.loaded', { n: warriors.length, seed })));
     $('#cycle-max').textContent = fmt(this.arena.maxCycles);
-    $('#seed-label').textContent = `Seed ${seed}`;
+    $('#seed-label').textContent = t('seed', { seed });
     $('#lens-addr').max = this.arena.size - 1;
-    const follow = $('#lens-follow');
-    follow.innerHTML = '<option value="-1">–</option>' + this.arena.players.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
     this.follow = -1;
+    this.fillFollowSelect();
     this.renderer.selected = -1;
-    this.setOverlay('Bereit zum Kampf', warriors.length === 1 ? 'Solo-Lauf: beobachte dein Programm' : `${warriors.map((w) => w.name).join(' · ')}`, true);
+    this.setOverlay(t('overlay.ready'), this.overlaySub(), true);
     this.renderPlayerCards();
     this.updateUi(true);
     if (this.lesson) this.updateGoalBanner();
     this.renderer.render();
     return true;
+  }
+
+  overlaySub() {
+    const ps = this.arena ? this.arena.players : [];
+    return ps.length === 1 ? t('overlay.solo') : ps.map((p) => p.name).join(' · ');
+  }
+
+  fillFollowSelect() {
+    const follow = $('#lens-follow');
+    follow.innerHTML = '<option value="-1">–</option>' + this.arena.players.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    follow.value = String(this.follow);
   }
 
   setOverlay(title, sub, playable) {
@@ -263,17 +326,18 @@ class App {
     this.speedIndex = Math.max(0, Math.min(SPEEDS.length - 1, i));
     $('#speed').value = this.speedIndex;
     const s = SPEEDS[this.speedIndex];
-    $('#speed-label').textContent = s === Infinity ? 'Maximum' : `${s < 1 ? s : fmt(s)} Zyklen/s`;
+    const v = s < 1 ? s.toLocaleString(locale()) : fmt(s);
+    $('#speed-label').textContent = s === Infinity ? t('speed.max') : t('speed.unit', { v });
     store.save('speed', this.speedIndex);
   }
 
-  frame(t) {
-    const dt = Math.min(0.1, (t - this.lastFrame) / 1000);
-    this.lastFrame = t;
+  frame(now) {
+    const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
+    this.lastFrame = now;
     const a = this.arena;
     if (this.running && a && !a.finished) {
       const speed = SPEEDS[this.speedIndex];
-      const budget = 12; // ms Rechenzeit pro Bild
+      const budget = 12; // ms of computing time per frame
       const start = performance.now();
       const c0 = a.cycle;
       if (speed === Infinity) {
@@ -292,7 +356,7 @@ class App {
       }
       const rate = (a.cycle - c0) / Math.max(dt, 1e-3);
       this.measured = this.measured * 0.9 + rate * 0.1;
-      // Frische Schreibvorgänge sollen ~0,6 s nachleuchten
+      // fresh writes should glow for about 0.6 s
       this.renderer.decay = Math.max(3, Math.min(20000, (speed === Infinity ? this.measured : speed) * 0.6));
       if (a.finished) this.onFinished();
     }
@@ -301,8 +365,8 @@ class App {
         const p = a.players[this.follow];
         if (p && p.alive && p.queue.count) this.renderer.selected = p.queue.pc[p.queue.head];
       }
-      this.renderer.render(t);
-      if (t - this.lastUi > 120) { this.updateUi(t - this.lastCharts > 400); this.lastUi = t; }
+      this.renderer.render(now);
+      if (now - this.lastUi > 120) { this.updateUi(now - this.lastCharts > 400); this.lastUi = now; }
     }
     requestAnimationFrame((tt) => this.frame(tt));
   }
@@ -311,14 +375,13 @@ class App {
     const a = this.arena;
     if (ev.type === 'eliminated') {
       const p = a.players[ev.player];
-      const by = ev.by >= 0 && ev.by !== ev.player ? ` – getroffen von ${a.players[ev.by].name}` : ev.by === ev.player ? ' – Eigentor' : '';
-      this.logEvent(ev.cycle, `<b style="color:${p.color}">${esc(p.name)}</b> ist ausgeschieden${esc(by)}`);
+      const by = ev.by >= 0 && ev.by !== ev.player ? esc(t('log.hitBy', { by: a.players[ev.by].name })) : ev.by === ev.player ? esc(t('log.ownGoal')) : '';
+      this.logEvent(ev.cycle, t('log.eliminated', { name: colored(p) }) + by);
     } else if (ev.type === 'proclimit') {
-      const p = a.players[ev.player];
-      this.logEvent(ev.cycle, `<b style="color:${p.color}">${esc(p.name)}</b> erreicht das Prozesslimit (${fmt(a.maxProcesses)})`);
+      this.logEvent(ev.cycle, t('log.procLimit', { name: colored(a.players[ev.player]), n: fmt(a.maxProcesses) }));
     } else if (ev.type === 'finish') {
-      const text = ev.winner != null ? `🏆 <b style="color:${a.players[ev.winner].color}">${esc(a.players[ev.winner].name)}</b> gewinnt!`
-        : ev.reason === 'timeout' ? '⏱ Zyklenlimit erreicht – Unentschieden' : 'Partie beendet';
+      const text = ev.winner != null ? t('log.win', { name: colored(a.players[ev.winner]) })
+        : esc(ev.reason === 'timeout' ? t('log.timeout') : t('log.over'));
       this.logEvent(ev.cycle, text);
     }
   }
@@ -340,17 +403,17 @@ class App {
     setTimeout(() => this.showResult(lessonOutcome), 350);
   }
 
-  // ---------------------------------------------------------------- Anzeige
+  // ---------------------------------------------------------------- panels
   renderPlayerCards() {
     const host = $('#player-cards');
-    if (!this.arena) { host.innerHTML = '<p class="muted small">Behebe die Fehler im Programm, um zu starten.</p>'; return; }
+    if (!this.arena) { host.innerHTML = `<p class="muted small">${esc(t('cards.empty'))}</p>`; return; }
     host.innerHTML = this.arena.players.map((p) => `
       <div class="pcard" data-p="${p.id}" style="--c:${p.color}">
         <div class="pname"><span class="color-dot"></span>${esc(p.name)}</div>
         <div class="pstats">
-          <div>Prozesse<b data-k="procs">1</b></div>
-          <div>Speicher<b data-k="cells">0%</b></div>
-          <div>Treffer<b data-k="kills">0</b></div>
+          <div>${esc(t('cards.procs'))}<b data-k="procs">1</b></div>
+          <div>${esc(t('cards.memory'))}<b data-k="cells">0%</b></div>
+          <div>${esc(t('cards.kills'))}<b data-k="kills">0</b></div>
         </div>
         <div class="bar"><div data-k="bar"></div></div>
       </div>`).join('');
@@ -374,8 +437,9 @@ class App {
     if (charts) {
       this.lastCharts = performance.now();
       const colors = a.players.map((p) => p.color);
-      drawLines($('#chart-procs'), a.history, 'procs', colors);
-      drawLines($('#chart-cells'), a.history, 'cells', colors, { percentOf: a.size });
+      const emptyText = t('chart.empty');
+      drawLines($('#chart-procs'), a.history, 'procs', colors, { emptyText });
+      drawLines($('#chart-cells'), a.history, 'cells', colors, { percentOf: a.size, emptyText });
       if (!$('[data-body=analysis]').hidden) this.renderAnalysis();
     }
     if (!$('[data-body=lens]').hidden) this.renderLens();
@@ -407,8 +471,8 @@ class App {
     }
     $('#lens-list').innerHTML = rows.join('');
     const c = a.cell(center);
-    const owner = c.owner >= 0 ? a.players[c.owner].name : 'niemand';
-    $('#lens-info').innerHTML = `Zelle <b>${center}</b> · gehört <b>${esc(owner)}</b> · ${c.writes}× beschrieben · ${c.execs}× ausgeführt`;
+    const owner = c.owner >= 0 ? a.players[c.owner].name : t('lens.nobody');
+    $('#lens-info').innerHTML = t('lens.info', { addr: center, owner: esc(owner), w: fmt(c.writes), e: fmt(c.execs) });
   }
 
   renderAnalysis() {
@@ -416,24 +480,19 @@ class App {
     if (!a) return;
     const blocks = a.players.map((p) => {
       const max = Math.max(1, ...p.opCounts);
-      const hist = OP_NAMES.map((name, i) => p.opCounts[i] ? `<span>${name}</span><div class="hbar" style="width:${(p.opCounts[i] / max) * 100}%"></div><span class="muted">${fmt(p.opCounts[i])}</span>` : '').join('');
+      const hist = OP_NAMES.map((name, i) => (p.opCounts[i] ? `<span>${name}</span><div class="hbar" style="width:${(p.opCounts[i] / max) * 100}%"></div><span class="muted">${fmt(p.opCounts[i])}</span>` : '')).join('');
+      const kv = [['an.executed', p.executed], ['an.maxProcs', p.maxProcs], ['an.spawns', p.spawns], ['an.deaths', p.deaths],
+        ['an.selfKills', p.selfKills], ['an.waits', p.waits], ['an.writes', p.writes]]
+        .map(([k, v]) => `<span>${esc(t(k))}</span><b>${fmt(v)}</b>`).join('');
       return `<div class="analysis-block" style="--c:${p.color}">
         <div class="pname" style="display:flex;gap:7px;align-items:center;font-weight:600;margin-bottom:6px"><span class="color-dot" style="--c:${p.color}"></span>${esc(p.name)}</div>
-        <div class="kv">
-          <span>Ausgeführte Befehle</span><b>${fmt(p.executed)}</b>
-          <span>Höchstzahl Prozesse</span><b>${fmt(p.maxProcs)}</b>
-          <span>Geteilt (SPL)</span><b>${fmt(p.spawns)}</b>
-          <span>Gestorbene Prozesse</span><b>${fmt(p.deaths)}</b>
-          <span>Eigentore</span><b>${fmt(p.selfKills)}</b>
-          <span>Verschlafene Züge</span><b>${fmt(p.waits)}</b>
-          <span>Schreibzugriffe</span><b>${fmt(p.writes)}</b>
-        </div>
-        <div class="chart-title">Befehlsmix</div>
-        <div class="hist">${hist || '<span class="muted">noch nichts</span>'}</div>
+        <div class="kv">${kv}</div>
+        <div class="chart-title">${esc(t('an.mix'))}</div>
+        <div class="hist">${hist || `<span class="muted">${esc(t('an.nothing'))}</span>`}</div>
       </div>`;
     });
     const head = a.players.map((p) => `<th style="color:${p.color}" title="${esc(p.name)}">${esc(p.name.slice(0, 6))}</th>`).join('');
-    const matrix = a.players.length > 1 ? `<div class="chart-title">Wer hat wen getroffen? (Zeile → Spalte)</div>
+    const matrix = a.players.length > 1 ? `<div class="chart-title">${esc(t('an.matrix'))}</div>
       <table class="matrix"><tr><th></th>${head}</tr>${a.players.map((p) => `<tr><td style="color:${p.color}">${esc(p.name)}</td>${a.players.map((q) => `<td>${p.id === q.id ? p.selfKills || '·' : p.kills[q.id] || '·'}</td>`).join('')}</tr>`).join('')}</table>` : '';
     $('#analysis').innerHTML = matrix + blocks.join('');
   }
@@ -445,24 +504,30 @@ class App {
     const winner = r.winner != null ? a.players[r.winner] : null;
     const solo = a.players.length === 1;
     let hero;
-    if (solo) hero = `<div class="trophy">${a.players[0].alive ? '🧬' : '💀'}</div><h2>${a.players[0].alive ? 'Überlebt!' : 'Ausgestorben'}</h2><div class="muted">${fmt(r.cycles)} Zyklen</div>`;
-    else if (winner) hero = `<div class="trophy">🏆</div><h2 style="color:${winner.color}">${esc(winner.name)} gewinnt</h2><div class="muted">nach ${fmt(r.cycles)} Zyklen · Last Process Standing</div>`;
-    else hero = `<div class="trophy">🤝</div><h2>Unentschieden</h2><div class="muted">${r.reason === 'timeout' ? `Zyklenlimit von ${fmt(a.maxCycles)} erreicht` : 'Niemand hat überlebt'}</div>`;
+    if (solo) {
+      const alive = a.players[0].alive;
+      hero = `<div class="trophy">${alive ? '🧬' : '💀'}</div><h2>${esc(t(alive ? 'res.survived' : 'res.extinct'))}</h2><div class="muted">${esc(t('res.cycles', { n: fmt(r.cycles) }))}</div>`;
+    } else if (winner) {
+      hero = `<div class="trophy">🏆</div><h2 style="color:${winner.color}">${esc(t('res.wins', { name: winner.name }))}</h2><div class="muted">${esc(t('res.winSub', { n: fmt(r.cycles) }))}</div>`;
+    } else {
+      hero = `<div class="trophy">🤝</div><h2>${esc(t('res.draw'))}</h2><div class="muted">${esc(r.reason === 'timeout' ? t('res.drawTimeout', { n: fmt(a.maxCycles) }) : t('res.drawNone'))}</div>`;
+    }
     let lessonHtml = '';
     if (lessonOutcome) {
+      const goal = lessonText(lessonOutcome.lesson, getLang()).goal;
       lessonHtml = lessonOutcome.success
-        ? `<div class="goal-banner success" style="margin-top:12px"><span class="goal-icon">✅</span><div class="goal-text"><b>Lektion geschafft!</b><span>${esc(lessonOutcome.lesson.goal.text)}</span></div>${lessonOutcome.next ? '<button class="btn small primary" id="result-next">Nächste Lektion →</button>' : ''}</div>`
-        : `<div class="goal-banner fail" style="margin-top:12px"><span class="goal-icon">🔁</span><div class="goal-text"><b>Noch nicht ganz.</b><span>Versuch es nochmal – neue Startpositionen können viel ändern. Oder passe den Code an.</span></div></div>`;
+        ? `<div class="goal-banner success" style="margin-top:12px"><span class="goal-icon">✅</span><div class="goal-text"><b>${esc(t('res.lessonDone'))}</b><span>${esc(goal)}</span></div>${lessonOutcome.next ? `<button class="btn small primary" id="result-next">${esc(t('res.next'))}</button>` : ''}</div>`
+        : `<div class="goal-banner fail" style="margin-top:12px"><span class="goal-icon">🔁</span><div class="goal-text"><b>${esc(t('res.lessonFail'))}</b><span>${esc(t('res.lessonFailText'))}</span></div></div>`;
     }
     $('#result-body').innerHTML = `<div class="result-hero">${hero}</div>${lessonHtml}
       <ol class="ranking">${ranked.map((p, i) => `<li><span class="place">${i + 1}.</span><span class="color-dot" style="--c:${p.color}"></span>
-      <span>${esc(p.name)}</span><span class="muted small">${p.alive ? `${fmt(p.queue.count)} Proz. · ${((p.cells / a.size) * 100).toFixed(1)}%` : `† Zyklus ${fmt(p.deathCycle)}`}</span></li>`).join('')}</ol>`;
+      <span>${esc(p.name)}</span><span class="muted small">${esc(p.alive ? t('res.alive', { p: fmt(p.queue.count), m: ((p.cells / a.size) * 100).toFixed(1) }) : t('res.dead', { n: fmt(p.deathCycle) }))}</span></li>`).join('')}</ol>`;
     const next = $('#result-next');
     if (next) next.onclick = () => { $('#result-dialog').close(); this.openTutorial(lessonOutcome.next.id); };
     $('#result-dialog').showModal();
   }
 
-  // ---------------------------------------------------------------- Canvas
+  // ---------------------------------------------------------------- canvas
   bindCanvas() {
     const canvas = $('#arena-canvas');
     const tip = $('#tooltip');
@@ -476,8 +541,8 @@ class App {
       const procs = a.processesAt(i);
       const ago = c.lastWrite > -1e8 ? a.cycle - c.lastWrite : null;
       tip.innerHTML = `<div class="ins">#${i} · <span class="op-${OP_INFO[OP_NAMES[c.op]].group}">${esc(disassemble(c.op, c.am, c.av, c.bm, c.bv, a.size))}</span></div>
-        <div class="muted">${owner ? `Besitz: <b style="color:${owner.color}">${esc(owner.name)}</b>` : 'leer'}${ago != null ? ` · geschrieben vor ${fmt(ago)} Zyklen` : ''}</div>
-        <div class="muted">${c.writes}× beschrieben · ${c.execs}× ausgeführt${procs ? ` · <b style="color:#fff">${procs} Prozess${procs > 1 ? 'e' : ''} hier</b>` : ''}</div>`;
+        <div class="muted">${owner ? t('tip.owner', { name: colored(owner) }) : esc(t('tip.empty'))}${ago != null ? esc(t('tip.ago', { n: fmt(ago) })) : ''}</div>
+        <div class="muted">${esc(t('tip.counts', { w: fmt(c.writes), e: fmt(c.execs) }))}${procs ? ` · <b style="color:#fff">${esc(t('tip.procs', { n: procs }))}</b>` : ''}</div>`;
       tip.hidden = false;
       const wrap = $('#canvas-wrap').getBoundingClientRect();
       let x = e.clientX - wrap.left + 14, y = e.clientY - wrap.top + 14;
@@ -501,14 +566,14 @@ class App {
   }
 
   showTab(name) {
-    $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+    $$('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
     $$('.tab-body').forEach((b) => { b.hidden = b.dataset.body !== name; });
     if (name === 'analysis') this.renderAnalysis();
     if (name === 'lens') this.renderLens();
     if (name === 'live') this.updateUi(true);
   }
 
-  // ---------------------------------------------------------------- Steuerung
+  // ---------------------------------------------------------------- controls
   bindControls() {
     $('#btn-play').onclick = () => this.toggle();
     $('#overlay-play').onclick = () => this.play();
@@ -518,7 +583,8 @@ class App {
     $('#add-slot').onclick = () => this.addSlot();
     $$('[data-preset]').forEach((b) => { b.onclick = () => this.applyPreset(b.dataset.preset); });
     $$('.seg-btn').forEach((b) => { b.onclick = () => this.setView(b.dataset.view); });
-    $$('.tab').forEach((t) => { t.onclick = () => this.showTab(t.dataset.tab); });
+    $$('.tab').forEach((b) => { b.onclick = () => this.showTab(b.dataset.tab); });
+    $$('.lang-btn').forEach((b) => { b.onclick = () => this.switchLanguage(b.dataset.lang); });
     $('#lens-addr').onchange = (e) => {
       if (!this.arena) return;
       this.renderer.selected = ((+e.target.value % this.arena.size) + this.arena.size) % this.arena.size;
@@ -575,29 +641,28 @@ class App {
         store.save('welcomed', true);
         $('#welcome-dialog').close();
         const w = b.dataset.welcome;
-        if (w === 'tutorial') this.openTutorial('l1');
-        if (w === 'demo') { this.applyPreset('bots'); this.setSpeed(10); this.play(); this.toast('Viel Spaß! Fahr mit der Maus über die Zellen oder klick sie an.'); }
-        if (w === 'solo') { this.applyPreset('solo'); this.openEditor(0); }
+        if (w === 'tutorial') this.openTutorial(BASICS[0].id);
+        if (w === 'demo') { this.applyPreset('bots', true); this.setSpeed(10); this.play(); this.toast(t('toast.demo')); }
+        if (w === 'solo') { this.applyPreset('solo', true); this.openEditor(0); }
       };
     });
     $('#welcome-dialog').addEventListener('close', () => store.save('welcomed', true));
+    $('#tutorial-dialog').addEventListener('close', () => { if (this.miniSim) { this.miniSim.destroy(); this.miniSim = null; } });
   }
 
-  // ---------------------------------------------------------------- Editor
+  // ---------------------------------------------------------------- editor
   setupEditor() {
     this.editor = new CodeEditor($('#code-editor'), { onChange: () => this.checkEditor() });
     const tpl = $('#editor-template');
-    tpl.innerHTML = '<option value="">Vorlage laden …</option>' + BOTS.map((b) => `<option value="${b.id}">${esc(b.name)}</option>`).join('') + '<option value="__starter">Startvorlage</option>';
     tpl.onchange = () => {
       const v = tpl.value;
       tpl.value = '';
       if (!v) return;
-      const code = v === '__starter' ? STARTER_CODE : BOT_BY_ID[v].code;
-      if (this.editor.value.trim() && !confirm('Aktuellen Code durch die Vorlage ersetzen?')) return;
+      const code = v === '__starter' ? STARTER_CODE[getLang()] : botText(BOT_BY_ID[v], getLang()).code;
+      if (this.editor.value.trim() && !confirm(t('ed.confirmReplace'))) return;
       this.editor.value = code;
       this.checkEditor();
     };
-    $('#editor-ref').innerHTML = OP_NAMES.map((n) => `<button type="button" class="ref-item" data-ex="${esc(OP_INFO[n].example)}" title="${esc(OP_INFO[n].desc)}"><b class="op-${OP_INFO[n].group}">${n}</b><span>${esc(OP_INFO[n].short)}</span></button>`).join('');
     $('#editor-ref').onclick = (e) => { const b = e.target.closest('.ref-item'); if (b) this.editor.insertLine(b.dataset.ex); };
     $('#editor-errors').onclick = (e) => { const li = e.target.closest('li[data-line]'); if (li) this.editor.gotoLine(+li.dataset.line); };
     $('#editor-cancel').onclick = () => $('#editor-dialog').close();
@@ -613,9 +678,20 @@ class App {
       e.target.value = '';
     };
     $('#editor-save').onclick = () => {
-      const name = ($('#editor-name').value || 'programm').replace(/[^\wäöüÄÖÜß-]+/g, '_');
+      const name = ($('#editor-name').value || t('ed.file')).replace(/[^\wäöüÄÖÜß-]+/g, '_');
       store.downloadText(`${name}.heap`, this.editor.value);
     };
+  }
+
+  /** Language-dependent parts of the editor: template list and instruction reference. */
+  renderEditorChrome() {
+    const lang = getLang();
+    $('#editor-template').innerHTML = `<option value="">${esc(t('ed.template'))}</option>`
+      + BOTS.map((b) => `<option value="${b.id}">${esc(botText(b, lang).name)}</option>`).join('')
+      + `<option value="__starter">${esc(t('ed.starter'))}</option>`;
+    const ops = dict().ops;
+    $('#editor-ref').innerHTML = OP_NAMES.map((n) => `<button type="button" class="ref-item" data-ex="${esc(OP_INFO[n].example)}" title="${esc(ops[n].desc)}"><b class="op-${OP_INFO[n].group}">${n}</b><span>${esc(ops[n].short)}</span></button>`).join('');
+    if ($('#editor-dialog').open) this.checkEditor();
   }
 
   openEditor(i) {
@@ -624,30 +700,30 @@ class App {
     this.pause();
     this.editingSlot = i;
     const fromBot = slot.kind === 'bot';
+    this.editorAutoName = true;
     $('#editor-dot').style.setProperty('--c', PLAYER_COLORS[i]);
-    $('#editor-name').value = fromBot ? `${BOT_BY_ID[slot.botId].name} (Kopie)` : this.slotName(slot);
+    $('#editor-name').value = fromBot ? `${this.slotName(slot)} ${t('ed.copy')}` : this.slotName(slot);
+    $('#editor-name').oninput = () => { this.editorAutoName = false; };
     this.editor.value = this.slotCode(slot);
-    this.checkEditor();
+    if (!fromBot) this.checkEditor(); else { this.editorAutoName = false; this.checkEditor(); }
     $('#editor-dialog').showModal();
-    if (fromBot) this.toast('Du bearbeitest eine Kopie des Bots. Mit „Übernehmen“ wird daraus dein eigener Code.');
+    if (fromBot) this.toast(t('ed.botCopy'));
     setTimeout(() => this.editor.focus(), 50);
   }
 
   checkEditor() {
-    const r = assemble(this.editor.value, { coreSize: this.settings.coreSize, maxProcesses: this.settings.maxProcesses });
+    const r = assemble(this.editor.value, { coreSize: this.settings.coreSize, maxProcesses: this.settings.maxProcesses, lang: getLang() });
     const marks = new Map();
     r.warnings.forEach((w) => marks.set(w.line, 'warn'));
     r.errors.forEach((e) => marks.set(e.line, 'err'));
     this.editor.setMarks(marks);
     const status = $('#editor-status');
     status.classList.toggle('bad', !r.ok);
-    status.innerHTML = r.ok ? `✓ Übersetzt: <b>${r.length}</b> Befehl${r.length === 1 ? '' : 'e'}, Start in Zeile ${r.instructions[r.org] ? r.instructions[r.org].line : 1}` : `✗ ${r.errors.length} Fehler`;
+    status.innerHTML = r.ok ? t('ed.ok', { n: r.length, line: r.instructions[r.org] ? r.instructions[r.org].line : 1 }) : esc(t('ed.bad', { n: r.errors.length }));
     $('#editor-errors').innerHTML = [...r.errors.map((e) => ({ ...e, cls: 'err' })), ...r.warnings.map((w) => ({ ...w, cls: 'warn' }))]
-      .map((e) => `<li class="${e.cls}" data-line="${e.line}">Zeile ${e.line}: ${esc(e.msg)}</li>`).join('');
-    if (r.name && document.activeElement !== $('#editor-name')) {
-      const cur = $('#editor-name').value;
-      if (!cur || cur.endsWith('(Kopie)') || cur === 'Mein Programm') $('#editor-name').value = r.name;
-    }
+      .map((e) => `<li class="${e.cls}" data-line="${e.line}">${esc(t('ed.errLine', { line: e.line, msg: e.msg }))}</li>`).join('');
+    // the ;name line in the code updates the title until the player types a name themselves
+    if (r.name && this.editorAutoName) $('#editor-name').value = r.name;
     return r;
   }
 
@@ -656,17 +732,20 @@ class App {
     if (!slot) return;
     slot.kind = 'custom';
     slot.code = this.editor.value;
-    slot.name = $('#editor-name').value.trim() || this.checkEditor().name || 'Mein Programm';
+    const typed = $('#editor-name').value.trim();
+    const asmName = this.checkEditor().name;
+    slot.name = typed && typed !== asmName ? typed : '';
     $('#editor-dialog').close();
     this.slotsChanged();
     const r = this.slotAsm(slot);
-    this.toast(r.ok ? `„${slot.name}“ ist bereit.` : 'Gespeichert – aber der Code enthält noch Fehler.', !r.ok);
+    this.toast(r.ok ? t('ed.ready', { name: this.slotName(slot) }) : t('ed.savedErr'), !r.ok);
   }
 
-  // ---------------------------------------------------------------- Lernpfad
+  // ---------------------------------------------------------------- tutorial
   openTutorial(id) {
     this.pause();
-    const current = id || this.lesson || LESSONS.find((l) => !this.progress[l.id])?.id || LESSONS[0].id;
+    const all = [...BASICS, ...LESSONS];
+    const current = id || this.lesson || all.find((l) => !this.progress[l.id])?.id || BASICS[0].id;
     this.renderLessonList(current);
     this.renderLesson(current);
     const d = $('#tutorial-dialog');
@@ -674,30 +753,75 @@ class App {
   }
 
   renderLessonList(current) {
-    $('#lesson-list').innerHTML = LESSONS.map((l, i) => `<li class="${l.id === current ? 'active' : ''} ${this.progress[l.id] ? 'done' : ''}">
-      <button data-lesson="${l.id}"><span class="num">${this.progress[l.id] ? '✓' : i + 1}</span><span>${esc(l.title)}<small>${esc(l.subtitle)}</small></span></button></li>`).join('');
+    const lang = getLang();
+    const item = (l, num) => {
+      const x = textOf(l, lang);
+      return `<li class="${l.id === current ? 'active' : ''} ${this.progress[l.id] ? 'done' : ''}">
+      <button data-lesson="${l.id}"><span class="num">${this.progress[l.id] ? '✓' : num}</span><span>${esc(x.title)}<small>${esc(x.subtitle)}</small></span></button></li>`;
+    };
+    $('#lesson-list').innerHTML = `<li class="lesson-group">${esc(t('tut.basics'))}</li>`
+      + BASICS.map((b, i) => item(b, String.fromCharCode(65 + i))).join('')
+      + `<li class="lesson-group">${esc(t('tut.battles'))}</li>`
+      + LESSONS.map((l, i) => item(l, i + 1)).join('');
     $$('#lesson-list [data-lesson]').forEach((b) => { b.onclick = () => { this.renderLessonList(b.dataset.lesson); this.renderLesson(b.dataset.lesson); }; });
   }
 
   renderLesson(id) {
+    this.shownLesson = id;
+    if (this.miniSim) { this.miniSim.destroy(); this.miniSim = null; }
+    if (isBasic(id)) { this.renderBasic(id); return; }
+    const lang = getLang();
     const l = LESSONS.find((x) => x.id === id);
+    const x = lessonText(l, lang);
     const idx = LESSONS.indexOf(l);
-    const opp = l.opponents.length ? l.opponents.map((o) => `<b>${esc(BOT_BY_ID[o].name)}</b>`).join(', ') : '<i>niemanden – du bist allein</i>';
+    const opp = l.opponents.length ? l.opponents.map((o) => `<b>${esc(botText(BOT_BY_ID[o], lang).name)}</b>`).join(', ') : `<i>${esc(t('tut.alone'))}</i>`;
     $('#lesson-body').innerHTML = `
-      <div class="muted small">Lektion ${idx + 1} von ${LESSONS.length}</div>
-      <h3>${esc(l.title)}</h3>
-      <div class="muted">${esc(l.subtitle)}</div>
-      ${l.html}
-      <div class="lesson-goal"><span class="goal-icon">🎯</span><div class="vs"><b>${esc(l.goal.text)}</b><div class="muted small">Gegner: ${opp}</div></div>
-        <button class="btn primary" id="lesson-start">Lektion starten ▶</button></div>`;
+      <div class="muted small">${esc(t('tut.of', { i: idx + 1, n: LESSONS.length }))}</div>
+      <h3>${esc(x.title)}</h3>
+      <div class="muted">${esc(x.subtitle)}</div>
+      ${x.html}
+      <div class="lesson-goal"><span class="goal-icon">🎯</span><div class="vs"><b>${esc(x.goal)}</b><div class="muted small">${t('tut.opponents', { list: opp })}</div></div>
+        <button class="btn primary" id="lesson-start">${esc(t('tut.start'))}</button></div>`;
     $('#lesson-start').onclick = () => this.startLesson(id);
+    $('#lesson-body').scrollTop = 0;
+  }
+
+  renderBasic(id) {
+    const lang = getLang();
+    const idx = BASICS.findIndex((b) => b.id === id);
+    const b = BASICS[idx];
+    const x = textOf(b, lang);
+    const last = idx === BASICS.length - 1;
+    $('#lesson-body').innerHTML = `
+      ${idx === 0 ? `<p class="basics-hint">${esc(t('tut.basicsHint'))}</p>` : ''}
+      <div class="muted small">${esc(t('tut.chapterOf', { i: idx + 1, n: BASICS.length }))}</div>
+      <h3>${esc(x.title)}</h3>
+      <div class="muted">${esc(x.subtitle)}</div>
+      ${x.html}
+      <div id="mini-host"></div>
+      <div class="basics-nav">
+        <button class="btn ghost" id="basic-back" ${idx === 0 ? 'disabled' : ''}>${esc(t('tut.back'))}</button>
+        <button class="btn ghost" id="basic-skip">${esc(t('tut.skip'))}</button>
+        <button class="btn primary" id="basic-next">${esc(t(last ? 'tut.toLessons' : 'tut.next'))}</button>
+      </div>`;
+    this.miniSim = new MiniSim($('#mini-host'), b.demo, lang);
+    const go = (target) => { this.renderLessonList(target); this.renderLesson(target); };
+    $('#basic-back').onclick = () => go(BASICS[idx - 1].id);
+    $('#basic-skip').onclick = () => go(LESSONS[0].id);
+    $('#basic-next').onclick = () => {
+      this.progress[id] = true;
+      store.save('progress', this.progress);
+      go(last ? LESSONS[0].id : BASICS[idx + 1].id);
+    };
+    $('#lesson-body').scrollTop = 0;
   }
 
   startLesson(id) {
     const l = LESSONS.find((x) => x.id === id);
+    const x = lessonText(l, getLang());
     this.lesson = id;
     const saved = store.load(`lesson-code:${id}`, null);
-    this.slots = [newSlot({ kind: 'custom', name: assemble(l.code).name || 'Ich', code: saved ?? l.code }),
+    this.slots = [newSlot({ kind: 'custom', name: '', code: saved ?? x.code }),
       ...l.opponents.map((b) => newSlot({ kind: 'bot', botId: b }))];
     $('#tutorial-dialog').close();
     this.saveSlots();
@@ -705,18 +829,20 @@ class App {
     if (l.speed != null) this.setSpeed(l.speed);
     this.rebuild();
     this.updateGoalBanner();
-    this.toast('Tipp: Mit ✎ kannst du den Lektions-Code verändern.');
+    this.toast(t('tut.tip'));
   }
 
   updateGoalBanner(state) {
     const b = $('#goal-banner');
     const l = this.lesson && LESSONS.find((x) => x.id === this.lesson);
     if (!l) { b.hidden = true; return; }
+    const x = lessonText(l, getLang());
+    this.goalState = state;
     b.hidden = false;
     b.classList.toggle('success', state === 'success');
     b.classList.toggle('fail', state === 'fail');
-    $('#goal-title').textContent = `Lektion ${LESSONS.indexOf(l) + 1}: ${l.title}`;
-    $('#goal-desc').textContent = state === 'success' ? `Geschafft! ${l.goal.text}` : state === 'fail' ? `Nicht geschafft: ${l.goal.text} Drück R für einen neuen Versuch.` : `Ziel: ${l.goal.text}`;
+    $('#goal-title').textContent = t('goal.title', { i: LESSONS.indexOf(l) + 1, title: x.title });
+    $('#goal-desc').textContent = t(state === 'success' ? 'goal.success' : state === 'fail' ? 'goal.fail' : 'goal.goal', { goal: x.goal });
     this.renderer.resize();
   }
 
@@ -724,7 +850,11 @@ class App {
     const l = LESSONS.find((x) => x.id === this.lesson);
     const r = this.arena.result;
     const success = l.goal.type === 'win' ? r.winner === 0 : r.survivors.includes(0);
-    if (this.slots[0] && this.slots[0].kind === 'custom') store.save(`lesson-code:${l.id}`, this.slots[0].code);
+    if (this.slots[0] && this.slots[0].kind === 'custom') {
+      const isTemplate = ['en', 'de'].some((lang) => l[lang] && l[lang].code === this.slots[0].code);
+      // only remember code the player actually changed
+      if (!isTemplate) store.save(`lesson-code:${l.id}`, this.slots[0].code);
+    }
     if (success) { this.progress[l.id] = true; store.save('progress', this.progress); }
     this.updateGoalBanner(success ? 'success' : 'fail');
     const next = LESSONS[LESSONS.indexOf(l) + 1];
@@ -739,10 +869,10 @@ class App {
     if (rebuild) this.rebuild();
   }
 
-  // ---------------------------------------------------------------- Turnier
+  // ---------------------------------------------------------------- tournament
   openTournament() {
     this.pause();
-    $('#tour-result').innerHTML = this.slots.length < 2 ? '<p class="muted">Für ein Turnier brauchst du mindestens zwei Programme.</p>' : '';
+    $('#tour-result').innerHTML = this.slots.length < 2 ? `<p class="muted">${esc(t('tour.needTwo'))}</p>` : '';
     $('#tour-bar').style.width = '0';
     $('#tour-start').disabled = this.slots.length < 2;
     $('#tour-start').onclick = () => this.runTournament();
@@ -753,17 +883,17 @@ class App {
   runTournament() {
     const programs = this.slots.map((s, i) => ({ name: this.slotName(s), color: PLAYER_COLORS[i], program: this.slotAsm(s) }));
     const bad = programs.find((p) => !p.program.ok);
-    if (bad) { $('#tour-result').innerHTML = `<p class="muted">„${esc(bad.name)}“ enthält Fehler.</p>`; return; }
+    if (bad) { $('#tour-result').innerHTML = `<p class="muted">${esc(t('tour.hasErrors', { name: bad.name }))}</p>`; return; }
     const rounds = +$('#tour-rounds').value;
     const mode = $('#tour-mode').value;
     const matches = [];
     if (mode === 'ffa') for (let r = 0; r < rounds; r++) matches.push(programs.map((_, i) => i));
     else for (let i = 0; i < programs.length; i++) for (let j = i + 1; j < programs.length; j++) for (let r = 0; r < rounds; r++) matches.push([i, j]);
-    const stats = programs.map(() => ({ w: 0, d: 0, l: 0, pts: 0, games: 0, cycles: 0 }));
+    const stats = programs.map(() => ({ w: 0, d: 0, l: 0, pts: 0, games: 0 }));
     let k = 0;
     this.tourCancel = false;
-    $('#tour-start').disabled = true;
     const btn = $('#tour-start');
+    btn.disabled = true;
     const step = () => {
       const t0 = performance.now();
       while (k < matches.length && performance.now() - t0 < 30) {
@@ -790,8 +920,9 @@ class App {
 
   renderTournament(programs, stats, done, total) {
     const rows = programs.map((p, i) => ({ p, s: stats[i] })).sort((a, b) => b.s.pts - a.s.pts);
-    $('#tour-result').innerHTML = `<p class="muted small">${done} von ${total} Partien gespielt</p>
-      <table class="tour"><tr><th>Programm</th><th>Siege</th><th>Unentsch.</th><th>Niederl.</th><th>Punkte</th><th>Siegquote</th></tr>
+    const th = ['tour.program', 'tour.wins', 'tour.draws', 'tour.losses', 'tour.points', 'tour.rate'].map((k) => `<th>${esc(t(k))}</th>`).join('');
+    $('#tour-result').innerHTML = `<p class="muted small">${esc(t('tour.played', { d: done, n: total }))}</p>
+      <table class="tour"><tr>${th}</tr>
       ${rows.map(({ p, s }) => {
         const pct = s.games ? (s.w / s.games) * 100 : 0;
         return `<tr style="--c:${p.color}"><td><span class="color-dot" style="--c:${p.color};display:inline-block;vertical-align:middle;margin-right:6px"></span>${esc(p.name)}</td>
@@ -799,7 +930,7 @@ class App {
       }).join('')}</table>`;
   }
 
-  // ---------------------------------------------------------------- Einstellungen & Teilen
+  // ---------------------------------------------------------------- settings & sharing
   openSettings() {
     this.pause();
     const s = this.settings;
@@ -836,30 +967,30 @@ class App {
   }
 
   async share() {
-    const url = store.shareUrl(this.slots);
+    const url = store.shareUrl(this.slots.map((s) => ({ ...s, name: this.slotName(s) })));
     try {
       await navigator.clipboard.writeText(url);
-      this.toast('Link kopiert! Wer ihn öffnet, bekommt genau diese Programme.');
+      this.toast(t('toast.copied'));
     } catch {
-      prompt('Diesen Link kopieren und teilen:', url);
+      prompt(t('toast.prompt'), url);
     }
   }
 
   importShared(list) {
-    this.slots = list.map((s) => (s.b && BOT_BY_ID[s.b] ? newSlot({ kind: 'bot', botId: s.b }) : newSlot({ kind: 'custom', name: String(s.n || 'Geteilt').slice(0, 32), code: String(s.c || '') })));
+    this.slots = list.map((s) => (s.b && BOT_BY_ID[s.b] ? newSlot({ kind: 'bot', botId: s.b }) : newSlot({ kind: 'custom', name: String(s.n || t('name.shared')).slice(0, 32), code: String(s.c || '') })));
     if (!this.slots.length) this.slots = [newSlot({})];
     history.replaceState(null, '', location.pathname + location.search);
     this.slotsChanged();
-    this.toast(`${this.slots.length} geteilte Programme geladen.`);
+    this.toast(t('toast.imported', { n: this.slots.length }));
   }
 
   toast(msg, bad = false) {
-    const t = $('#toast');
-    t.textContent = msg;
-    t.classList.toggle('bad', bad);
-    t.classList.add('show');
+    const el = $('#toast');
+    el.textContent = msg;
+    el.classList.toggle('bad', bad);
+    el.classList.add('show');
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+    this.toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
   }
 }
 

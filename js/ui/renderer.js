@@ -1,6 +1,6 @@
-// Zeichnet die Speicher-Arena auf ein Canvas.
-// Jede Zelle wird zunächst als ein Pixel in ein kleines Offscreen-Bild geschrieben
-// und dann pixelgenau hochskaliert – das ist auch bei 8000 Zellen und 60 FPS flott.
+// Draws the memory arena onto a canvas.
+// Every cell is first written as one pixel into a small offscreen image and then
+// scaled up pixel-perfectly – fast even with 8000 cells at 60 FPS.
 
 import { OP } from '../engine/isa.js';
 
@@ -33,7 +33,7 @@ export class ArenaRenderer {
     this.ctx = canvas.getContext('2d');
     this.arena = null;
     this.view = 'owner';
-    this.decay = 40;           // Zyklen, über die frische Schreibvorgänge verblassen
+    this.decay = 40;           // cycles over which fresh writes fade
     this.showGrid = true;
     this.showHeads = true;
     this.hover = -1;
@@ -72,7 +72,7 @@ export class ArenaRenderer {
     const n = this.arena ? this.arena.size : 4000;
     const pad = 10;
     const W = this.w - pad * 2, H = this.h - pad * 2;
-    // Größte quadratische Zellengröße finden, mit der alles hineinpasst
+    // find the largest square cell size that fits everything
     let cs = Math.sqrt((W * H) / n);
     let cols, rows;
     for (; cs > 1; cs -= 0.05) {
@@ -173,7 +173,7 @@ export class ArenaRenderer {
           b = EMPTY[2] + (col[2] - EMPTY[2]) * k;
           if (fresh > 0) { const w = fresh * fresh * 0.55; r += (255 - r) * w; g += (255 - g) * w; b += (255 - b) * w; }
         }
-        // Ausführungs-Spur
+        // execution trail
         const eage = cycle - a.lastExec[i];
         if (eage < decay) { const w = (1 - eage / decay) * 0.45; r += (255 - r) * w; g += (255 - g) * w; b += (255 - b) * w; }
         data[o] = r; data[o + 1] = g; data[o + 2] = b; data[o + 3] = 255;

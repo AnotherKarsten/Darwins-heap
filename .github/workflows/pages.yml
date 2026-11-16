@@ -1,4 +1,4 @@
-name: Auf GitHub Pages veröffentlichen
+name: Publish to GitHub Pages
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Seite zusammenstellen
+      - name: Assemble the site
         run: |
           mkdir -p _site
           cp -r index.html css js assets .nojekyll _site/

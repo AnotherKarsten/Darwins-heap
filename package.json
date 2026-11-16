@@ -1,7 +1,7 @@
 {
   "name": "darwins-heap",
   "version": "1.0.0",
-  "description": "Browsergame: selbst geschriebene Programme kämpfen in einem simulierten Speicher ums Überleben.",
+  "description": "Browser game: self-written programs fight for survival in a simulated memory.",
   "type": "module",
   "private": true,
   "license": "MIT",

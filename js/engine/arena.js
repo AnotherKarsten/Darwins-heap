@@ -1,16 +1,16 @@
-// Darwin's Heap – die simulierte Speicher-Arena
+// Darwin's Heap – the simulated memory arena
 //
-// Der Speicher ist ein Ring aus `size` Zellen. Jede Zelle enthält einen Befehl
-// (Opcode, zwei Adressierungsarten, zwei Werte). Jedes Programm besitzt eine
-// Warteschlange von Prozessen. Pro Zyklus führt jedes noch lebende Programm
-// genau einen Befehl seines vordersten Prozesses aus – fair im Reihum-Verfahren.
+// Memory is a ring of `size` cells. Every cell holds one instruction
+// (opcode, two addressing modes, two values). Every program owns a queue of
+// processes. Each cycle, every living program executes exactly one instruction
+// of its front process – fair round robin.
 
 import { OP, OP_NAMES, MODE, normalize } from './isa.js';
 import { createRng } from './rng.js';
 
 export const DEFAULT_SETTINGS = Object.freeze({
   coreSize: 4000,
-  maxCycles: 0,          // 0 = automatisch (coreSize * 20)
+  maxCycles: 0,          // 0 = automatic (coreSize * 20)
   maxProcesses: 1000,
   maxLength: 100,
   minDistance: 100,
@@ -40,7 +40,7 @@ class ProcessQueue {
     this.count--;
     return i;
   }
-  /** Ruft fn(pc, sleep, position) für bis zu `limit` Prozesse auf. */
+  /** Calls fn(pc, sleep, position) for up to `limit` processes. */
   forEach(fn, limit = Infinity) {
     const n = Math.min(this.count, limit);
     for (let k = 0; k < n; k++) {
@@ -73,7 +73,7 @@ export class Arena {
     this.execOwner = new Int8Array(n).fill(-1);
     this.writeCount = new Uint32Array(n);
     this.execCount = new Uint32Array(n);
-    // Leerer Speicher = DAT #0, #0
+    // Empty memory = DAT #0, #0
     this.am.fill(MODE.IMM);
     this.bm.fill(MODE.IMM);
 
@@ -96,17 +96,18 @@ export class Arena {
   }
 
   /**
-   * Lädt Programme an zufällige, ausreichend weit entfernte Stellen.
+   * Loads programs at random positions that are far enough apart.
    * @param {{name:string,color:string,program:{instructions:any[],org:number}}[]} warriors
+   * @param {number[]} [fixedStarts] optional fixed start addresses (used by the tutorial)
    */
-  load(warriors) {
+  load(warriors, fixedStarts) {
     const n = this.size;
     const lengths = warriors.map((w) => w.program.instructions.length);
-    const starts = this.placeWarriors(lengths);
+    const starts = fixedStarts ? fixedStarts.map((s) => normalize(s, n)) : this.placeWarriors(lengths);
     warriors.forEach((w, id) => {
       const start = starts[id];
       const player = {
-        id, name: w.name || `Programm ${id + 1}`, color: w.color, start,
+        id, name: w.name || `Program ${id + 1}`, color: w.color, start,
         length: lengths[id], alive: true, deathCycle: null,
         queue: new ProcessQueue(this.maxProcesses + 2),
         cells: 0, maxProcs: 1, executed: 0, spawns: 0, splFails: 0, waits: 0,
@@ -134,7 +135,7 @@ export class Arena {
     const k = lengths.length;
     const gap = this.settings.minDistance;
     const total = lengths.reduce((s, l) => s + l + gap, 0);
-    if (total > n) throw new Error('Der Speicher ist zu klein für diese Programme.');
+    if (total > n) { const e = new Error('Memory is too small for these programs.'); e.code = 'CORE_TOO_SMALL'; throw e; }
     const dist = (a, b) => { const d = Math.abs(a - b) % n; return Math.min(d, n - d); };
     for (let attempt = 0; attempt < 2000; attempt++) {
       const starts = [];
@@ -142,7 +143,7 @@ export class Arena {
       for (let i = 0; i < k && ok; i++) {
         const s = this.placeRng.int(n);
         for (let j = 0; j < i; j++) {
-          // Abstand zwischen den Bereichen (Start bis Ende) prüfen
+          // check the distance between the program ranges
           const need = Math.max(lengths[i], lengths[j]) + gap;
           if (dist(s, starts[j]) < need) { ok = false; break; }
         }
@@ -150,7 +151,7 @@ export class Arena {
       }
       if (ok) return starts;
     }
-    // Rückfall: gleichmäßig verteilen
+    // fallback: spread evenly
     const offset = this.placeRng.int(n);
     return lengths.map((_, i) => (offset + Math.floor((i * n) / k)) % n);
   }
@@ -172,14 +173,14 @@ export class Arena {
 
   get alivePlayers() { return this.players.filter((p) => p.alive); }
 
-  /** Führt genau einen Befehl des Programms aus, das gerade am Zug ist. */
+  /** Executes exactly one instruction of the program whose turn it is. */
   tick() {
     if (this.finished) return;
     const players = this.players;
     const p = players[this.turn];
     if (p.alive) this.execute(p);
 
-    // Nächstes lebendes Programm finden
+    // find the next living program
     let next = this.turn;
     let wrapped = false;
     for (let k = 0; k < players.length; k++) {
@@ -195,7 +196,7 @@ export class Arena {
     this.checkEnd();
   }
 
-  /** Ein voller Zyklus: jedes lebende Programm ist einmal dran. */
+  /** One full cycle: every living program gets one turn. */
   step() {
     if (this.finished) return;
     const c = this.cycle;
@@ -289,7 +290,7 @@ export class Arena {
     p.opCounts[op]++;
     const am = this.am[pc], bm = this.bm[pc];
     const aAddr = this.resolve(am, this.av[pc], pc, id);
-    // Momentaufnahme der A-Zelle (nach eventuellen Nebenwirkungen)
+    // snapshot of the A cell (after any side effects)
     const sOp = this.op[aAddr], sAm = this.am[aAddr], sAv = this.av[aAddr], sBm = this.bm[aAddr], sBv = this.bv[aAddr];
     const bAddr = this.resolve(bm, this.bv[pc], pc, id);
     const next = (pc + 1) % n;
@@ -385,7 +386,7 @@ export class Arena {
         return;
       }
       default:
-        // Unbekannter Opcode verhält sich wie DAT
+        // unknown opcode behaves like DAT
         if (q.count === 0) this.eliminate(p, -1);
     }
   }
@@ -396,7 +397,7 @@ export class Arena {
     this.emit({ type: 'eliminated', player: p.id, by: killer });
   }
 
-  /** Lesbare Kopie einer Zelle (für Lupe und Tooltip). */
+  /** Readable copy of a cell (for lens and tooltip). */
   cell(addr) {
     const a = normalize(addr, this.size);
     return {
@@ -406,7 +407,7 @@ export class Arena {
     };
   }
 
-  /** Anzahl Prozesse je Adresse (für Tooltip/Lupe). */
+  /** Number of processes at an address (for tooltip/lens). */
   processesAt(addr) {
     let count = 0;
     for (const p of this.players) if (p.alive) p.queue.forEach((pc) => { if (pc === addr) count++; });

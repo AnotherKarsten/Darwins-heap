@@ -1,6 +1,6 @@
-// Kleine Liniendiagramme ohne externe Bibliothek.
+// Small line charts without an external library.
 
-export function drawLines(canvas, history, key, colors, { percentOf = 0 } = {}) {
+export function drawLines(canvas, history, key, colors, { percentOf = 0, emptyText = '' } = {}) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = canvas.getBoundingClientRect();
   const w = Math.max(10, Math.floor(rect.width));
@@ -14,7 +14,7 @@ export function drawLines(canvas, history, key, colors, { percentOf = 0 } = {}) 
   if (!rows || rows.length < 2) {
     ctx.fillStyle = '#5b6780';
     ctx.font = '11px system-ui, sans-serif';
-    ctx.fillText('Daten erscheinen, sobald die Partie läuft', 8, h / 2 + 4);
+    ctx.fillText(emptyText, 8, h / 2 + 4);
     return;
   }
   const pad = { l: 30, r: 6, t: 6, b: 14 };
@@ -25,7 +25,7 @@ export function drawLines(canvas, history, key, colors, { percentOf = 0 } = {}) 
   const X = (x) => pad.l + (x / xmax) * (w - pad.l - pad.r);
   const Y = (y) => h - pad.b - (y / ymax) * (h - pad.t - pad.b);
 
-  // Gitter & Achsen
+  // grid & axes
   ctx.strokeStyle = 'rgba(255,255,255,0.07)';
   ctx.lineWidth = 1;
   ctx.fillStyle = '#6b7891';
@@ -48,7 +48,7 @@ export function drawLines(canvas, history, key, colors, { percentOf = 0 } = {}) 
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
     ctx.stroke();
-    // Fläche
+    // area
     ctx.globalAlpha = 0.08;
     ctx.fillStyle = col;
     ctx.lineTo(X(xs[xs.length - 1]), Y(0));

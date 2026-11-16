@@ -1,4 +1,4 @@
-// Speichern im Browser und Teilen per Link – beides fehlertolerant.
+// Saving in the browser and sharing via link – both fault-tolerant.
 
 const PREFIX = 'darwins-heap:';
 
@@ -15,7 +15,7 @@ export function save(key, value) {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify(value));
   } catch {
-    /* Speicher nicht verfügbar – Spiel läuft trotzdem */
+    /* storage unavailable – the game still works */
   }
 }
 
@@ -32,7 +32,7 @@ function fromBase64Url(s) {
   return new TextDecoder().decode(bytes);
 }
 
-/** Erzeugt einen Link, der alle Programme enthält. */
+/** Creates a link that contains all programs. */
 export function shareUrl(slots) {
   const data = slots.map((s) => (s.kind === 'bot' ? { b: s.botId } : { n: s.name, c: s.code }));
   const url = new URL(location.href);

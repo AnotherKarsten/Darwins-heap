@@ -1,4 +1,4 @@
-// Ein schlanker Code-Editor: Textarea mit hinterlegter Syntaxhervorhebung und Zeilennummern.
+// A lean code editor: textarea over a syntax-highlighted layer, plus line numbers.
 
 import { OP_NAMES, OP_ALIASES, OP_INFO } from '../engine/isa.js';
 
@@ -40,7 +40,7 @@ export function highlightLine(line) {
 export class CodeEditor {
   constructor(host, { onChange } = {}) {
     this.onChange = onChange;
-    host.innerHTML = '<div class="gutter"></div><div class="area"><pre aria-hidden="true"></pre><textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Quelltext"></textarea></div>';
+    host.innerHTML = '<div class="gutter"></div><div class="area"><pre aria-hidden="true"></pre><textarea spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Source code"></textarea></div>';
     this.gutter = host.querySelector('.gutter');
     this.pre = host.querySelector('pre');
     this.ta = host.querySelector('textarea');
@@ -61,7 +61,7 @@ export class CodeEditor {
       this.insert(e.shiftKey ? '' : '\t');
     }
     if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
-      // Einrückung der aktuellen Zeile übernehmen
+      // keep the indentation of the current line
       const { selectionStart: s, value } = this.ta;
       const lineStart = value.lastIndexOf('\n', s - 1) + 1;
       const indent = /^[ \t]*/.exec(value.slice(lineStart, s))[0];

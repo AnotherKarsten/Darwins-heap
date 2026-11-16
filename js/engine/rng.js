@@ -1,4 +1,4 @@
-// Kleiner, schneller und reproduzierbarer Zufallsgenerator (mulberry32).
+// Small, fast and reproducible random number generator (mulberry32).
 export function createRng(seed) {
   let s = (seed >>> 0) || 0x9e3779b9;
   return {

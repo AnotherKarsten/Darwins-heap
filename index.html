@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Darwin's Heap – Last Process Standing</title>
-  <meta name="description" content="Schreibe kleine Programme, die sich in einem simulierten Speicher vermehren und bekämpfen. Das letzte Programm gewinnt.">
+  <meta name="description" content="Write tiny programs that copy, multiply and attack each other inside a simulated memory. The last program standing wins.">
   <meta name="theme-color" content="#0b0f17">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/style.css">
@@ -23,107 +23,111 @@
       </div>
     </div>
     <nav class="topnav">
-      <button class="btn ghost" id="btn-tutorial" title="Schritt für Schritt lernen">🎓 Lernpfad</button>
-      <button class="btn ghost" id="btn-manual" title="Alle Befehle erklärt">📖 Handbuch</button>
-      <button class="btn ghost" id="btn-tournament" title="Viele Runden automatisch spielen">🏆 Turnier</button>
-      <button class="btn ghost" id="btn-share" title="Link mit allen Programmen kopieren">🔗 Teilen</button>
-      <button class="btn ghost icon" id="btn-settings" title="Einstellungen" aria-label="Einstellungen">⚙️</button>
+      <button class="btn ghost" id="btn-tutorial" data-i18n="nav.tutorial" data-i18n-title="nav.tutorial.title">🎓 Tutorial</button>
+      <button class="btn ghost" id="btn-manual" data-i18n="nav.manual" data-i18n-title="nav.manual.title">📖 Manual</button>
+      <button class="btn ghost" id="btn-tournament" data-i18n="nav.tournament" data-i18n-title="nav.tournament.title">🏆 Tournament</button>
+      <button class="btn ghost" id="btn-share" data-i18n="nav.share" data-i18n-title="nav.share.title">🔗 Share</button>
+      <div class="lang-switch" role="group" data-i18n-aria="nav.lang" aria-label="Language">
+        <button class="lang-btn" data-lang="en" title="English">EN</button>
+        <button class="lang-btn" data-lang="de" title="Deutsch">DE</button>
+      </div>
+      <button class="btn ghost icon" id="btn-settings" data-i18n-title="nav.settings" data-i18n-aria="nav.settings" title="Settings" aria-label="Settings">⚙️</button>
     </nav>
   </header>
 
   <main class="layout">
-    <!-- Linke Spalte: Programme -->
-    <aside class="panel left" aria-label="Programme">
+    <!-- left column: programs -->
+    <aside class="panel left" data-i18n-aria="aria.programs" aria-label="Programs">
       <div class="panel-head">
-        <h2>Programme</h2>
+        <h2 data-i18n="panel.programs">Programs</h2>
         <span class="muted" id="slot-count"></span>
       </div>
       <div id="slots" class="slots"></div>
-      <button class="btn dashed" id="add-slot">＋ Programm hinzufügen</button>
+      <button class="btn dashed" id="add-slot" data-i18n="slots.add">＋ Add program</button>
       <div class="quickstart">
-        <div class="muted small">Schnellstart</div>
+        <div class="muted small" data-i18n="quick.title">Quick start</div>
         <div class="row wrap">
-          <button class="chip" data-preset="solo">Ich vs. Bot</button>
-          <button class="chip" data-preset="royale">4er Battle Royale</button>
-          <button class="chip" data-preset="bots">Nur Bots zuschauen</button>
+          <button class="chip" data-preset="solo" data-i18n="quick.solo">Me vs. bot</button>
+          <button class="chip" data-preset="royale" data-i18n="quick.royale">4-way battle royale</button>
+          <button class="chip" data-preset="bots" data-i18n="quick.bots">Watch bots only</button>
         </div>
       </div>
     </aside>
 
-    <!-- Mitte: Arena -->
-    <section class="stage" aria-label="Arena">
+    <!-- centre: arena -->
+    <section class="stage" data-i18n-aria="aria.stage" aria-label="Arena">
       <div id="goal-banner" class="goal-banner" hidden>
         <span class="goal-icon">🎯</span>
         <div class="goal-text"><b id="goal-title"></b><span id="goal-desc"></span></div>
-        <button class="btn small" id="goal-lesson">Lektion</button>
-        <button class="btn small ghost" id="goal-close" title="Lektion verlassen">✕</button>
+        <button class="btn small" id="goal-lesson" data-i18n="goal.lesson">Lesson</button>
+        <button class="btn small ghost" id="goal-close" data-i18n-title="goal.close" title="Leave lesson">✕</button>
       </div>
       <div class="canvas-wrap" id="canvas-wrap">
-        <canvas id="arena-canvas" aria-label="Speicher-Arena"></canvas>
+        <canvas id="arena-canvas" data-i18n-aria="aria.arena" aria-label="Memory arena"></canvas>
         <div id="tooltip" class="tooltip" hidden></div>
         <div id="stage-overlay" class="stage-overlay">
           <div class="overlay-card">
-            <div class="overlay-title">Bereit zum Kampf</div>
-            <div class="overlay-sub" id="overlay-sub">Drücke ▶ oder die Leertaste</div>
-            <button class="btn primary big" id="overlay-play">▶ Starten</button>
+            <div class="overlay-title" data-i18n="overlay.ready">Ready to fight</div>
+            <div class="overlay-sub" id="overlay-sub" data-i18n="overlay.hint">Press ▶ or the space bar</div>
+            <button class="btn primary big" id="overlay-play" data-i18n="overlay.start">▶ Start</button>
           </div>
         </div>
       </div>
       <div class="controls">
         <div class="ctrl-group">
-          <button class="btn icon" id="btn-reset" title="Neu starten mit neuen Positionen (R)" aria-label="Neu starten">⟲</button>
-          <button class="btn primary icon wide" id="btn-play" title="Start/Pause (Leertaste)" aria-label="Start/Pause">▶</button>
-          <button class="btn icon" id="btn-step" title="Einen Zyklus weiter (→). Mit Umschalt: ein einzelner Befehl" aria-label="Schritt">⏭</button>
+          <button class="btn icon" id="btn-reset" data-i18n-title="ctrl.reset" title="Restart with new positions (R)" aria-label="Restart">⟲</button>
+          <button class="btn primary icon wide" id="btn-play" data-i18n-title="ctrl.play" title="Start/pause (space)" aria-label="Start/pause">▶</button>
+          <button class="btn icon" id="btn-step" data-i18n-title="ctrl.step" title="Advance one cycle (→). With Shift: a single instruction" aria-label="Step">⏭</button>
         </div>
         <div class="ctrl-group speed">
           <span class="muted small">🐢</span>
-          <input type="range" id="speed" min="0" max="16" step="1" aria-label="Geschwindigkeit">
+          <input type="range" id="speed" min="0" max="16" step="1" data-i18n-aria="ctrl.speed" aria-label="Speed">
           <span class="muted small">🐇</span>
           <span id="speed-label" class="speed-label"></span>
         </div>
-        <div class="ctrl-group seg" role="radiogroup" aria-label="Ansicht">
-          <button class="seg-btn active" data-view="owner" title="Wem gehört welche Zelle? (1)">Besitz</button>
-          <button class="seg-btn" data-view="writes" title="Wie oft wurde eine Zelle beschrieben? (2)">Schreib-Hitze</button>
-          <button class="seg-btn" data-view="execs" title="Wie oft wurde eine Zelle ausgeführt? (3)">Ausführung</button>
+        <div class="ctrl-group seg" role="radiogroup" data-i18n-aria="ctrl.view" aria-label="View">
+          <button class="seg-btn active" data-view="owner" data-i18n="view.owner" data-i18n-title="view.owner.title">Ownership</button>
+          <button class="seg-btn" data-view="writes" data-i18n="view.writes" data-i18n-title="view.writes.title">Write heat</button>
+          <button class="seg-btn" data-view="execs" data-i18n="view.execs" data-i18n-title="view.execs.title">Execution</button>
         </div>
       </div>
       <div class="cycle-row">
-        <span class="muted small">Zyklus <b id="cycle-now">0</b> / <span id="cycle-max">0</span></span>
+        <span class="muted small"><span data-i18n="cycle">Cycle</span> <b id="cycle-now">0</b> / <span id="cycle-max">0</span></span>
         <div class="progress"><div id="cycle-bar"></div></div>
         <span class="muted small" id="seed-label"></span>
       </div>
     </section>
 
-    <!-- Rechte Spalte: Statistik -->
-    <aside class="panel right" aria-label="Statistik">
+    <!-- right column: statistics -->
+    <aside class="panel right" data-i18n-aria="aria.stats" aria-label="Statistics">
       <div class="tabs" role="tablist">
-        <button class="tab active" data-tab="live" role="tab">Live</button>
-        <button class="tab" data-tab="lens" role="tab">Lupe</button>
-        <button class="tab" data-tab="analysis" role="tab">Analyse</button>
+        <button class="tab active" data-tab="live" role="tab" data-i18n="tab.live">Live</button>
+        <button class="tab" data-tab="lens" role="tab" data-i18n="tab.lens">Lens</button>
+        <button class="tab" data-tab="analysis" role="tab" data-i18n="tab.analysis">Analysis</button>
       </div>
       <div class="tab-body" data-body="live">
         <div id="player-cards" class="player-cards"></div>
         <div class="chart-box">
-          <div class="chart-title">Prozesse</div>
+          <div class="chart-title" data-i18n="chart.procs">Processes</div>
           <canvas id="chart-procs" class="chart"></canvas>
         </div>
         <div class="chart-box">
-          <div class="chart-title">Speicheranteil</div>
+          <div class="chart-title" data-i18n="chart.cells">Memory share</div>
           <canvas id="chart-cells" class="chart"></canvas>
         </div>
-        <div class="chart-title">Ereignisse</div>
+        <div class="chart-title" data-i18n="events">Events</div>
         <ol id="event-log" class="event-log"></ol>
       </div>
       <div class="tab-body" data-body="lens" hidden>
         <div class="row lens-head">
-          <label class="small muted">Adresse <input type="number" id="lens-addr" min="0" value="0"></label>
-          <label class="small muted">Folgen
+          <label class="small muted"><span data-i18n="lens.addr">Address</span> <input type="number" id="lens-addr" min="0" value="0"></label>
+          <label class="small muted"><span data-i18n="lens.follow">Follow</span>
             <select id="lens-follow"><option value="-1">–</option></select>
           </label>
         </div>
         <div id="lens-info" class="lens-info"></div>
         <ol id="lens-list" class="lens-list"></ol>
-        <p class="muted small">Tipp: Klick in die Arena wählt eine Zelle. „Folgen“ heftet die Lupe an den nächsten Prozess eines Programms.</p>
+        <p class="muted small" data-i18n="lens.tip"></p>
       </div>
       <div class="tab-body" data-body="analysis" hidden>
         <div id="analysis"></div>
@@ -131,18 +135,16 @@
     </aside>
   </main>
 
-  <!-- Editor -->
+  <!-- editor -->
   <dialog id="editor-dialog" class="dialog wide">
     <form method="dialog" class="dialog-inner editor-layout" id="editor-form">
       <div class="dialog-head">
         <span class="color-dot" id="editor-dot"></span>
-        <input id="editor-name" class="title-input" maxlength="32" placeholder="Name des Programms" aria-label="Name">
+        <input id="editor-name" class="title-input" maxlength="32" data-i18n-placeholder="ed.name" data-i18n-aria="ed.name">
         <div class="row">
-          <select id="editor-template" aria-label="Vorlage laden">
-            <option value="">Vorlage laden …</option>
-          </select>
-          <button type="button" class="btn small ghost" id="editor-open" title="Datei öffnen">📂</button>
-          <button type="button" class="btn small ghost" id="editor-save" title="Als Datei speichern">💾</button>
+          <select id="editor-template" aria-label="Template"></select>
+          <button type="button" class="btn small ghost" id="editor-open" data-i18n-title="ed.open">📂</button>
+          <button type="button" class="btn small ghost" id="editor-save" data-i18n-title="ed.save">💾</button>
           <input type="file" id="editor-file" accept=".heap,.red,.txt" hidden>
         </div>
       </div>
@@ -151,25 +153,25 @@
         <div class="editor-side">
           <div id="editor-status" class="editor-status"></div>
           <ul id="editor-errors" class="editor-errors"></ul>
-          <div class="chart-title">Befehle <span class="muted small">(Klick fügt ein)</span></div>
+          <div class="chart-title"><span data-i18n="ed.instructions">Instructions</span> <span class="muted small" data-i18n="ed.clickInsert"></span></div>
           <div id="editor-ref" class="editor-ref"></div>
         </div>
       </div>
       <div class="dialog-foot">
-        <span class="muted small">Tab rückt ein · Strg+Enter übernimmt · Esc bricht ab</span>
+        <span class="muted small" data-i18n="ed.foot"></span>
         <div class="row">
-          <button type="button" class="btn ghost" id="editor-cancel">Abbrechen</button>
-          <button type="button" class="btn primary" id="editor-apply">Übernehmen</button>
+          <button type="button" class="btn ghost" id="editor-cancel" data-i18n="ed.cancel">Cancel</button>
+          <button type="button" class="btn primary" id="editor-apply" data-i18n="ed.apply">Apply</button>
         </div>
       </div>
     </form>
   </dialog>
 
-  <!-- Lernpfad -->
+  <!-- tutorial -->
   <dialog id="tutorial-dialog" class="dialog wide">
     <div class="dialog-inner tutorial-layout">
       <div class="dialog-head">
-        <h2>🎓 Lernpfad</h2>
+        <h2 data-i18n="tut.title">🎓 Tutorial</h2>
         <button class="btn small ghost" data-close>✕</button>
       </div>
       <div class="tutorial-main">
@@ -179,75 +181,75 @@
     </div>
   </dialog>
 
-  <!-- Handbuch -->
+  <!-- manual -->
   <dialog id="manual-dialog" class="dialog wide">
     <div class="dialog-inner">
       <div class="dialog-head">
-        <h2>📖 Handbuch: Heapcode</h2>
+        <h2 data-i18n="man.title">📖 Manual: Heapcode</h2>
         <button class="btn small ghost" data-close>✕</button>
       </div>
       <div id="manual-body" class="manual-body"></div>
     </div>
   </dialog>
 
-  <!-- Ergebnis -->
+  <!-- result -->
   <dialog id="result-dialog" class="dialog">
     <div class="dialog-inner">
       <div id="result-body"></div>
       <div class="dialog-foot">
-        <button class="btn ghost" data-close>Ansehen</button>
-        <button class="btn primary" id="result-again">⟲ Revanche (neue Positionen)</button>
+        <button class="btn ghost" data-close data-i18n="res.view">View arena</button>
+        <button class="btn primary" id="result-again" data-i18n="res.again">⟲ Rematch (new positions)</button>
       </div>
     </div>
   </dialog>
 
-  <!-- Turnier -->
+  <!-- tournament -->
   <dialog id="tournament-dialog" class="dialog wide">
     <div class="dialog-inner">
       <div class="dialog-head">
-        <h2>🏆 Turnier</h2>
+        <h2 data-i18n="tour.title">🏆 Tournament</h2>
         <button class="btn small ghost" data-close>✕</button>
       </div>
-      <p class="muted">Ein einzelner Kampf hängt stark von den Startpositionen ab. Ein Turnier spielt viele Runden mit zufälligen Positionen – so zeigt sich, welches Programm wirklich stärker ist. Sieg = 3 Punkte, Unentschieden = 1 Punkt.</p>
+      <p class="muted" data-i18n="tour.intro"></p>
       <div class="row wrap">
-        <label>Modus
+        <label><span data-i18n="tour.mode">Mode</span>
           <select id="tour-mode">
-            <option value="ffa">Alle gegeneinander</option>
-            <option value="pairs">Jeder gegen jeden (1 gegen 1)</option>
+            <option value="ffa" data-i18n="tour.ffa">Free-for-all</option>
+            <option value="pairs" data-i18n="tour.pairs">Round robin (1 vs 1)</option>
           </select>
         </label>
-        <label>Runden
+        <label><span data-i18n="tour.rounds">Rounds</span>
           <select id="tour-rounds"><option>10</option><option selected>50</option><option>100</option><option>250</option></select>
         </label>
-        <button class="btn primary" id="tour-start">Start</button>
+        <button class="btn primary" id="tour-start" data-i18n="tour.start">Start</button>
       </div>
       <div class="progress tour-progress"><div id="tour-bar"></div></div>
       <div id="tour-result"></div>
     </div>
   </dialog>
 
-  <!-- Einstellungen -->
+  <!-- settings -->
   <dialog id="settings-dialog" class="dialog">
     <form method="dialog" class="dialog-inner settings-form">
       <div class="dialog-head">
-        <h2>⚙️ Einstellungen</h2>
+        <h2 data-i18n="set.title">⚙️ Settings</h2>
       </div>
-      <label>Speichergröße
+      <label><span data-i18n="set.core">Memory size</span>
         <select id="set-core">
-          <option value="2000">2000 Zellen – schnell &amp; eng</option>
-          <option value="4000">4000 Zellen – Standard</option>
-          <option value="8000">8000 Zellen – klassisch (Core War)</option>
+          <option value="2000" data-i18n="set.core2000"></option>
+          <option value="4000" data-i18n="set.core4000"></option>
+          <option value="8000" data-i18n="set.core8000"></option>
         </select>
       </label>
-      <label>Zyklenlimit (danach Unentschieden)
+      <label><span data-i18n="set.cycles">Cycle limit</span>
         <select id="set-cycles">
-          <option value="0">automatisch (20 × Speichergröße)</option>
-          <option value="10000">10 000</option>
-          <option value="40000">40 000</option>
-          <option value="160000">160 000</option>
+          <option value="0" data-i18n="set.cyclesAuto"></option>
+          <option value="10000">10k</option>
+          <option value="40000">40k</option>
+          <option value="160000">160k</option>
         </select>
       </label>
-      <label>Maximale Prozesse je Programm
+      <label><span data-i18n="set.procs">Max processes per program</span>
         <select id="set-procs">
           <option value="64">64</option>
           <option value="256">256</option>
@@ -255,32 +257,36 @@
           <option value="4000">4000</option>
         </select>
       </label>
-      <label>Startpositionen
+      <label><span data-i18n="set.seedMode">Start positions</span>
         <select id="set-seed-mode">
-          <option value="random">Jede Partie zufällig</option>
-          <option value="fixed">Fester Seed (reproduzierbar)</option>
+          <option value="random" data-i18n="set.random"></option>
+          <option value="fixed" data-i18n="set.fixed"></option>
         </select>
       </label>
-      <label id="set-seed-wrap">Seed <input type="number" id="set-seed" min="1" max="4294967295"></label>
-      <label class="check"><input type="checkbox" id="set-grid" checked> Zellen-Raster anzeigen</label>
-      <label class="check"><input type="checkbox" id="set-heads" checked> Prozesse hervorheben</label>
+      <label id="set-seed-wrap"><span data-i18n="set.seed">Seed</span> <input type="number" id="set-seed" min="1" max="4294967295"></label>
+      <label class="check"><input type="checkbox" id="set-grid" checked> <span data-i18n="set.grid">Show cell grid</span></label>
+      <label class="check"><input type="checkbox" id="set-heads" checked> <span data-i18n="set.heads">Highlight processes</span></label>
       <div class="dialog-foot">
-        <button class="btn ghost" value="cancel">Abbrechen</button>
-        <button class="btn primary" id="settings-apply" value="ok">Übernehmen</button>
+        <button class="btn ghost" value="cancel" data-i18n="set.cancel">Cancel</button>
+        <button class="btn primary" id="settings-apply" value="ok" data-i18n="set.apply">Apply</button>
       </div>
     </form>
   </dialog>
 
-  <!-- Willkommen -->
+  <!-- welcome -->
   <dialog id="welcome-dialog" class="dialog">
     <div class="dialog-inner welcome">
-      <h2>Willkommen bei Darwin's <span class="accent">Heap</span></h2>
-      <p>Hier kämpfen <b>Programme</b> gegeneinander – in einem simulierten Speicher, in dem sie sich kopieren, vermehren und gegenseitig überschreiben. <b>Das letzte Programm gewinnt.</b></p>
-      <p class="muted">Du schreibst die Programme in <i>Heapcode</i>, einer winzigen Sprache mit 15 Befehlen.</p>
+      <div class="lang-switch welcome-lang" role="group" data-i18n-aria="nav.lang">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="de">DE</button>
+      </div>
+      <h2 data-i18n-html="wel.title"></h2>
+      <p data-i18n-html="wel.p1"></p>
+      <p class="muted" data-i18n-html="wel.p2"></p>
       <div class="welcome-choices">
-        <button class="choice" data-welcome="tutorial"><span>🎓</span><b>Lernpfad</b><small>Sechs kurze Lektionen, vom ersten Befehl bis zum Battle Royale</small></button>
-        <button class="choice" data-welcome="demo"><span>🍿</span><b>Zuschauen</b><small>Vier Bots kämpfen – einfach mal ansehen</small></button>
-        <button class="choice" data-welcome="solo"><span>⚔️</span><b>Direkt loslegen</b><small>Dein Programm gegen einen Bot</small></button>
+        <button class="choice" data-welcome="tutorial"><span>🎓</span><b data-i18n="wel.tutorial"></b><small data-i18n="wel.tutorialText"></small></button>
+        <button class="choice" data-welcome="demo"><span>🍿</span><b data-i18n="wel.demo"></b><small data-i18n="wel.demoText"></small></button>
+        <button class="choice" data-welcome="solo"><span>⚔️</span><b data-i18n="wel.solo"></b><small data-i18n="wel.soloText"></small></button>
       </div>
     </div>
   </dialog>

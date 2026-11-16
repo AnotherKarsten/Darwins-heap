@@ -1,11 +1,15 @@
-// Darwin's Heap – Assembler für Heapcode
+// Darwin's Heap – assembler for Heapcode
 //
-// Syntax je Zeile:   [label[:]] BEFEHL [A-Operand [, B-Operand]]   ; Kommentar
-// Direktiven:        name EQU ausdruck   |   ORG label   |   END [label]
-// Meta-Kommentare:   ;name …   ;author …   ;strategy …
-// Ausdrücke:         Zahlen, Labels, + - * / % und Klammern, Konstanten CORESIZE, MAXPROCESSES, MAXCYCLES, MAXLENGTH
+// Line syntax:     [label[:]] OPCODE [A-operand [, B-operand]]   ; comment
+// Directives:      name EQU expression   |   ORG label   |   END [label]
+// Meta comments:   ;name …   ;author …   ;strategy …
+// Expressions:     numbers, labels, + - * / % and parentheses, constants CORESIZE, MAXPROCESSES, MAXCYCLES, MAXLENGTH
 
 import { OP, OP_INFO, OP_ALIASES, MODE, MODE_CHARS, normalize } from './isa.js';
+import { ASM_MESSAGES } from './messages.js';
+
+// Message table of the current assemble() call (assembling is synchronous).
+let M = ASM_MESSAGES.en;
 
 const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const DIRECTIVES = new Set(['EQU', 'ORG', 'END']);
@@ -19,7 +23,7 @@ function opName(word) {
 
 class AsmError extends Error {}
 
-// ---------- Ausdrucksauswertung ----------
+// ---------- expression evaluation ----------
 function tokenizeExpr(text) {
   const tokens = [];
   let i = 0;
@@ -39,29 +43,29 @@ function tokenizeExpr(text) {
       i = j; continue;
     }
     if ('+-*/%()'.includes(c)) { tokens.push({ t: 'op', v: c }); i++; continue; }
-    throw new AsmError(`Unerwartetes Zeichen „${c}“ im Ausdruck`);
+    throw new AsmError(M.unexpectedChar(c));
   }
   return tokens;
 }
 
 function evaluate(text, resolve) {
   const tk = tokenizeExpr(text);
-  if (tk.length === 0) throw new AsmError('Leerer Ausdruck');
+  if (tk.length === 0) throw new AsmError(M.emptyExpr());
   let pos = 0;
   const peek = () => tk[pos];
   const take = () => tk[pos++];
   function primary() {
     const t = take();
-    if (!t) throw new AsmError('Ausdruck endet unerwartet');
+    if (!t) throw new AsmError(M.exprEnd());
     if (t.t === 'num') return t.v;
     if (t.t === 'id') return resolve(t.v);
     if (t.t === 'op' && t.v === '(') {
       const v = expr();
       const close = take();
-      if (!close || close.v !== ')') throw new AsmError('Schließende Klammer fehlt');
+      if (!close || close.v !== ')') throw new AsmError(M.missingParen());
       return v;
     }
-    throw new AsmError(`Unerwartetes „${t.v}“ im Ausdruck`);
+    throw new AsmError(M.unexpectedToken(t.v));
   }
   function unary() {
     const t = peek();
@@ -75,7 +79,7 @@ function evaluate(text, resolve) {
       if (!t || t.t !== 'op' || !'*/%'.includes(t.v)) return v;
       take();
       const r = unary();
-      if ((t.v === '/' || t.v === '%') && r === 0) throw new AsmError('Division durch 0');
+      if ((t.v === '/' || t.v === '%') && r === 0) throw new AsmError(M.divZero());
       v = t.v === '*' ? v * r : t.v === '/' ? Math.trunc(v / r) : v % r;
     }
   }
@@ -90,7 +94,7 @@ function evaluate(text, resolve) {
     }
   }
   const v = expr();
-  if (pos < tk.length) throw new AsmError(`Überzähliges „${tk[pos].v}“ im Ausdruck`);
+  if (pos < tk.length) throw new AsmError(M.trailing(tk[pos].v));
   return v;
 }
 
@@ -108,18 +112,19 @@ function splitOperands(text) {
 }
 
 function parseOperand(text) {
-  if (text === '') throw new AsmError('Leerer Operand');
+  if (text === '') throw new AsmError(M.emptyOperand());
   const idx = MODE_CHARS.indexOf(text[0]);
   if (idx >= 0) return { mode: idx, expr: text.slice(1).trim() || '0' };
   return { mode: MODE.DIR, expr: text };
 }
 
 /**
- * Übersetzt Quelltext in Befehle.
+ * Assembles source text into instructions. options: coreSize, maxLength, maxProcesses, maxCycles, lang ('en'|'de').
  * @returns {{ok:boolean, errors:{line:number,msg:string}[], warnings:{line:number,msg:string}[],
  *   instructions:{op,am,av,bm,bv,line}[], org:number, name:string, author:string, strategy:string}}
  */
 export function assemble(source, options = {}) {
+  M = ASM_MESSAGES[options.lang] || ASM_MESSAGES.en;
   const coreSize = options.coreSize ?? 4000;
   const maxLength = options.maxLength ?? 100;
   const constants = {
@@ -133,6 +138,7 @@ export function assemble(source, options = {}) {
   const warnings = [];
   const meta = { name: '', author: '', strategy: '' };
   const labels = new Map();       // name(upper) -> index
+  const labelCase = new Map();    // name(upper) -> name as written
   const equs = new Map();         // name(upper) -> {expr, line}
   const pending = [];             // {op, operands, line, index}
   let pendingLabels = [];
@@ -140,7 +146,7 @@ export function assemble(source, options = {}) {
 
   const lines = String(source ?? '').replace(/\r\n?/g, '\n').split('\n');
 
-  // ---------- Durchgang 1: Zeilen zerlegen, Labels sammeln ----------
+  // ---------- pass 1: split lines, collect labels ----------
   for (let ln = 0; ln < lines.length; ln++) {
     const lineNo = ln + 1;
     let raw = lines[ln];
@@ -162,19 +168,19 @@ export function assemble(source, options = {}) {
       const words = text.split(/\s+/);
       let w = 0;
       const lineLabels = [];
-      // Labels vor dem Befehl einsammeln
+      // collect labels before the opcode
       while (w < words.length) {
         const word = words[w].replace(/:$/, '');
         const up = word.toUpperCase();
         if (opName(word) || DIRECTIVES.has(up)) break;
-        // "name EQU ausdruck"
+        // "name EQU expression"
         if (w + 1 < words.length && words[w + 1].toUpperCase() === 'EQU') break;
         if (w > 0) {
-          // Nach einem Label muss ein Befehl folgen
+          // a label must be followed by an opcode
           const culprit = IDENT_RE.test(word) ? words[w] : words[w - 1];
-          throw new AsmError(`Unbekannter Befehl „${culprit.replace(/:$/, '')}“`);
+          throw new AsmError(M.unknownOp(culprit.replace(/:$/, '')));
         }
-        if (!IDENT_RE.test(word)) throw new AsmError(`Unbekannter Befehl „${words[w]}“`);
+        if (!IDENT_RE.test(word)) throw new AsmError(M.unknownOp(words[w]));
         lineLabels.push(word);
         w++;
       }
@@ -183,11 +189,11 @@ export function assemble(source, options = {}) {
       // EQU
       if (w + 1 < words.length && words[w + 1].toUpperCase() === 'EQU') {
         const name = words[w];
-        if (!IDENT_RE.test(name)) throw new AsmError(`Ungültiger Name „${name}“ für EQU`);
+        if (!IDENT_RE.test(name)) throw new AsmError(M.invalidEquName(name));
         const expr = words.slice(w + 2).join(' ');
-        if (!expr) throw new AsmError('EQU braucht einen Wert');
+        if (!expr) throw new AsmError(M.equNeedsValue());
         const up = name.toUpperCase();
-        if (equs.has(up) || labels.has(up) || up in constants) throw new AsmError(`„${name}“ ist schon definiert`);
+        if (equs.has(up) || labels.has(up) || up in constants) throw new AsmError(M.alreadyDefined(name));
         equs.set(up, { expr, line: lineNo });
         continue;
       }
@@ -198,8 +204,8 @@ export function assemble(source, options = {}) {
       for (const l of [...pendingLabels, ...lineLabels.map((x) => ({ l: x, lineNo }))]) {
         const up = l.l.toUpperCase();
         if (labels.has(up) || equs.has(up) || up in constants) {
-          errors.push({ line: l.lineNo, msg: `Label „${l.l}“ ist doppelt vergeben` });
-        } else labels.set(up, pending.length);
+          errors.push({ line: l.lineNo, msg: M.dupLabel(l.l) });
+        } else { labels.set(up, pending.length); labelCase.set(up, l.l.replace(/:$/, '')); }
       }
       pendingLabels = [];
 
@@ -214,13 +220,13 @@ export function assemble(source, options = {}) {
       else throw e;
     }
   }
-  // Labels am Dateiende zeigen hinter den letzten Befehl
+  // labels at the end point behind the last instruction
   for (const l of pendingLabels) {
     const up = l.l.toUpperCase();
-    if (!labels.has(up)) labels.set(up, pending.length);
+    if (!labels.has(up)) { labels.set(up, pending.length); labelCase.set(up, l.l); }
   }
 
-  // ---------- Durchgang 2: Operanden auswerten ----------
+  // ---------- pass 2: evaluate operands ----------
   const makeResolver = (index) => {
     const stack = new Set();
     const resolve = (name) => {
@@ -228,13 +234,13 @@ export function assemble(source, options = {}) {
       if (labels.has(up)) return labels.get(up) - index;
       if (up in constants) return constants[up];
       if (equs.has(up)) {
-        if (stack.has(up)) throw new AsmError(`EQU „${name}“ verweist auf sich selbst`);
+        if (stack.has(up)) throw new AsmError(M.equSelfRef(name));
         stack.add(up);
         const v = evaluate(equs.get(up).expr, resolve);
         stack.delete(up);
         return v;
       }
-      throw new AsmError(`Unbekanntes Label „${name}“`);
+      throw new AsmError(M.unknownLabel(name));
     };
     return resolve;
   };
@@ -244,8 +250,8 @@ export function assemble(source, options = {}) {
     try {
       const info = OP_INFO[p.op];
       const n = p.operands.length;
-      if (n < info.min) throw new AsmError(`${p.op} braucht ${info.min === 2 ? 'zwei Operanden' : 'einen Operanden'}`);
-      if (n > info.max) throw new AsmError(`${p.op} hat zu viele Operanden`);
+      if (n < info.min) throw new AsmError(info.min === 2 ? M.needsTwo(p.op) : M.needsOne(p.op));
+      if (n > info.max) throw new AsmError(M.tooMany(p.op));
       let a = { mode: MODE.IMM, expr: '0' };
       let b = { mode: MODE.IMM, expr: '0' };
       if (p.op === 'DAT' && n === 1) b = parseOperand(p.operands[0]);
@@ -258,7 +264,7 @@ export function assemble(source, options = {}) {
       const bv = normalize(evaluate(b.expr, resolve), coreSize);
       instructions.push({ op: OP[p.op], am: a.mode, av, bm: b.mode, bv, line: p.line });
       if ((p.op === 'JMP' || p.op === 'SPL') && a.mode === MODE.IMM) {
-        warnings.push({ line: p.line, msg: `${p.op} mit # springt auf den eigenen Befehl – gemeint war vermutlich eine Adresse ohne #` });
+        warnings.push({ line: p.line, msg: M.warnImm(p.op) });
       }
     } catch (e) {
       if (e instanceof AsmError) errors.push({ line: p.line, msg: e.message });
@@ -274,10 +280,14 @@ export function assemble(source, options = {}) {
     org = labels.get('START');
   }
 
-  if (pending.length === 0 && errors.length === 0) errors.push({ line: 1, msg: 'Das Programm enthält keinen Befehl' });
-  if (instructions.length > maxLength) errors.push({ line: instructions[maxLength].line, msg: `Zu lang: höchstens ${maxLength} Befehle erlaubt` });
+  // label names per instruction index (for teaching views)
+  const labelAt = instructions.map(() => []);
+  for (const [up, idx] of labels) if (idx < labelAt.length) labelAt[idx].push(labelCase.get(up) || up);
+
+  if (pending.length === 0 && errors.length === 0) errors.push({ line: 1, msg: M.noInstructions() });
+  if (instructions.length > maxLength) errors.push({ line: instructions[maxLength].line, msg: M.tooLong(maxLength) });
   if (org >= instructions.length && instructions.length > 0) org = 0;
 
   errors.sort((x, y) => x.line - y.line);
-  return { ok: errors.length === 0, errors, warnings, instructions, org, length: instructions.length, ...meta };
+  return { ok: errors.length === 0, errors, warnings, instructions, org, length: instructions.length, labelAt, ...meta };
 }
