@@ -11,6 +11,7 @@ export default {
     'nav.tournament': '🏆 Tournament', 'nav.tournament.title': 'Play many rounds automatically',
     'nav.share': '🔗 Share', 'nav.share.title': 'Copy a link that contains all programs',
     'nav.settings': 'Settings',
+    'dlg.max': 'Maximise / restore (you can also drag the bottom-right corner)',
     'nav.lang': 'Language',
 
     // programs panel

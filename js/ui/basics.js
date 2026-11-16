@@ -12,7 +12,7 @@ const COUNTER = { en: 'start   ADD #1, counter\n        JMP start\ncounter DAT #
 export const BASICS = [
   {
     id: 'b1',
-    demo: { programs: [{ start: 4, code: COUNTER }], noSteps: true },
+    demo: { programs: [{ start: 4, code: COUNTER }], noSteps: true, hidePc: true, select: 4 },
     en: {
       title: 'Memory is a row of boxes',
       subtitle: 'What the colourful grid actually shows',
@@ -38,7 +38,7 @@ Alle anderen Zellen sind leer: In ihnen steht <code>DAT #0, #0</code>, das heiß
   },
   {
     id: 'bcell',
-    demo: { programs: [{ start: 4, code: COUNTER }], noSteps: true, select: 4 },
+    demo: { programs: [{ start: 4, code: COUNTER }], noSteps: true, hidePc: true, select: 4 },
     en: {
       title: 'Inside a cell: A field and B field',
       subtitle: 'Every instruction has exactly three parts',

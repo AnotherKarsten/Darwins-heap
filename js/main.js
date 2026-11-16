@@ -648,6 +648,17 @@ class App {
     });
     $('#welcome-dialog').addEventListener('close', () => store.save('welcomed', true));
     $('#tutorial-dialog').addEventListener('close', () => { if (this.miniSim) { this.miniSim.destroy(); this.miniSim = null; } });
+    // big dialogs can be maximised; the choice is remembered per dialog
+    const maxed = store.load('maximized', {});
+    $$('[data-max]').forEach((b) => {
+      const d = b.closest('dialog');
+      d.classList.toggle('maximized', !!maxed[d.id]);
+      b.onclick = () => {
+        const on = d.classList.toggle('maximized');
+        maxed[d.id] = on;
+        store.save('maximized', maxed);
+      };
+    });
   }
 
   // ---------------------------------------------------------------- editor

@@ -10,6 +10,7 @@ export default {
     'nav.tournament': '🏆 Turnier', 'nav.tournament.title': 'Viele Runden automatisch spielen',
     'nav.share': '🔗 Teilen', 'nav.share.title': 'Link mit allen Programmen kopieren',
     'nav.settings': 'Einstellungen',
+    'dlg.max': 'Maximieren / wiederherstellen (oder an der Ecke unten rechts ziehen)',
     'nav.lang': 'Sprache',
 
     'panel.programs': 'Programme',

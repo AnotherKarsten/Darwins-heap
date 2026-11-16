@@ -135,20 +135,25 @@ export class MiniSim {
     this.T = TX[lang] || TX.en;
     this.timer = null;
     const T = this.T;
+    const hidePc = !!demo.hidePc;
     host.innerHTML = `
       <div class="mini">
-        <div class="mini-grid"></div>
-        <div class="mini-legend">
-          <span><i class="lg lg-a"></i>${T.legendA}</span><span><i class="lg lg-b"></i>${T.legendB}</span>
-          <span><i class="lg lg-pc">▶</i>${T.legendPc}</span><span><i class="lg lg-t"></i>${T.legendTarget}</span>
+        <div class="mini-left">
+          <div class="mini-grid"></div>
+          <div class="mini-legend">
+            <span><i class="lg lg-a"></i>${T.legendA}</span><span><i class="lg lg-b"></i>${T.legendB}</span>
+            ${hidePc ? '' : `<span><i class="lg lg-pc">▶</i>${T.legendPc}</span>`}<span><i class="lg lg-t"></i>${T.legendTarget}</span>
+          </div>
+          <div class="row mini-ctrl" ${demo.noSteps ? 'hidden' : ''}>
+            <button class="btn small" data-mini="reset">⟲ ${T.reset}</button>
+            <button class="btn small primary" data-mini="step">⏭ ${T.step}</button>
+            <button class="btn small" data-mini="auto">▶ ${T.auto}</button>
+          </div>
         </div>
-        <div class="mini-detail"></div>
-        <div class="mini-queue"></div>
-        <div class="mini-explain"></div>
-        <div class="row mini-ctrl" ${demo.noSteps ? 'hidden' : ''}>
-          <button class="btn small" data-mini="reset">⟲ ${T.reset}</button>
-          <button class="btn small primary" data-mini="step">⏭ ${T.step}</button>
-          <button class="btn small" data-mini="auto">▶ ${T.auto}</button>
+        <div class="mini-right">
+          <div class="mini-queue" ${hidePc ? 'hidden' : ''}></div>
+          <div class="mini-explain" ${demo.noSteps ? 'hidden' : ''}></div>
+          <div class="mini-detail"></div>
         </div>
       </div>`;
     this.grid = host.querySelector('.mini-grid');
@@ -335,7 +340,7 @@ export class MiniSim {
     this.detailEl.innerHTML = `
       <div class="det-head"><b>${T.detTitle(addr, label && esc(label))}</b>
         ${this.selected != null && !this.demo.noSteps ? `<button class="btn small ghost" data-follow>↺ ${T.follow}</button>` : ''}</div>
-      ${heads.map((p) => `<p class="det-pc">${T.detPc(this.who(p))}</p>`).join('')}
+      ${this.demo.hidePc ? '' : heads.map((p) => `<p class="det-pc">${T.detPc(this.who(p))}</p>`).join('')}
       ${rows}`;
     return { a: useA && am !== MODE.IMM ? A.addr : -1, b: useB && bm !== MODE.IMM ? B.addr : -1 };
   }
@@ -347,7 +352,7 @@ export class MiniSim {
     const targets = this.renderDetail(detail);
     const heads = new Map();
     a.players.forEach((p) => {
-      if (!p.alive) return;
+      if (!p.alive || this.demo.hidePc) return;
       p.queue.forEach((pc, s, k) => { if (!heads.has(pc)) heads.set(pc, { p, first: k === 0 && a.turn === p.id }); });
     });
     let html = '';
